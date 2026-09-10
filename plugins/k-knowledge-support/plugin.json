@@ -1,0 +1,40 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "k-knowledge-support",
+  "version": "0.1.0",
+  "description": "Evidence-backed inspection and engineering support for the K Knowledge Support Continue fork.",
+  "author": {
+    "name": "EDCAPP",
+    "url": "https://github.com/RepoKan"
+  },
+  "repository": "https://github.com/RepoKan/continue",
+  "license": "Apache-2.0",
+  "keywords": [
+    "knowledge-support",
+    "code-inspection",
+    "continue",
+    "engineering"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "K Knowledge Support",
+        "shortDescription": "Project inspection and engineering support",
+        "longDescription": "Inspect, explain, diagnose, test, and safely update the K Knowledge Support Continue fork using project-local and GitHub evidence.",
+        "developerName": "EDCAPP",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://github.com/RepoKan/continue",
+        "defaultPrompt": [
+          "Inspect this project and explain the relevant architecture.",
+          "Diagnose this issue using repository evidence.",
+          "Review this change and identify regression risks."
+        ],
+        "brandColor": "#0F766E"
+      }
+    }
+  }
+}

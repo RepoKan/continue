@@ -1,0 +1,20 @@
+{
+  "name": "repokan-projects",
+  "interface": {
+    "displayName": "RepoKan Projects"
+  },
+  "plugins": [
+    {
+      "name": "k-knowledge-support",
+      "source": {
+        "source": "local",
+        "path": "./plugins/k-knowledge-support"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
