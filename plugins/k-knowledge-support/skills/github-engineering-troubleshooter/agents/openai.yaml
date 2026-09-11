@@ -1,0 +1,12 @@
+interface:
+  display_name: "GitHub Engineering Troubleshooter"
+  short_description: "Evidence-backed GitHub repo, PR, CI, and head-SHA troubleshooting"
+  brand_color: "#0F766E"
+  default_prompt: "Use $github-engineering-troubleshooter to diagnose this GitHub repository or CI problem from exact repo/ref/SHA evidence and propose the smallest safe fix."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "github"
+      description: "Inspect and, when explicitly authorized, update GitHub repositories, pull requests, Actions, and artifacts"
+      transport: "streamable_http"
+      url: "https://api.githubcopilot.com/mcp/"
