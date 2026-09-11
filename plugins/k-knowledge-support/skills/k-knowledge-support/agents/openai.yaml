@@ -1,0 +1,12 @@
+interface:
+  display_name: "K Knowledge Support"
+  short_description: "Project-local inspection and engineering support"
+  brand_color: "#0F766E"
+  default_prompt: "Use $k-knowledge-support to inspect this project and provide an evidence-backed answer."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "github"
+      description: "Read or update RepoKan/continue when no local checkout is available"
+      transport: "streamable_http"
+      url: "https://api.githubcopilot.com/mcp/"

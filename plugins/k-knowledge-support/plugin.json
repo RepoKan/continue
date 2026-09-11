@@ -1,0 +1,41 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "k-knowledge-support",
+  "version": "0.1.1",
+  "description": "Evidence-backed engineering and Production-sensitive payment support for the K Knowledge Support Continue fork.",
+  "author": {
+    "name": "EDCAPP",
+    "url": "https://github.com/RepoKan"
+  },
+  "repository": "https://github.com/RepoKan/continue",
+  "license": "Apache-2.0",
+  "keywords": [
+    "knowledge-support",
+    "code-inspection",
+    "continue",
+    "engineering",
+    "payment"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "K Knowledge Support",
+        "shortDescription": "Project inspection and payment engineering support",
+        "longDescription": "Inspect, explain, diagnose, test, and safely update the K Knowledge Support Continue fork using project-local, GitHub, and Production-sensitive payment evidence.",
+        "developerName": "EDCAPP",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://github.com/RepoKan/continue",
+        "defaultPrompt": [
+          "Inspect this project and explain the relevant architecture.",
+          "Diagnose this issue using repository evidence.",
+          "Review this KTC Payment change for Production, protocol, state, security, validation, and rollback impact."
+        ],
+        "brandColor": "#0F766E"
+      }
+    }
+  }
+}

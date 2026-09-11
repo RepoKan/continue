@@ -1,0 +1,18 @@
+# Changelog
+
+## 0.1.1 - 2026-09-11
+
+- Add Production-sensitive KTC Payment routing and a dedicated payment verification reference to both skill copies.
+- Add a Payment Production Reviewer agent for EMV/CTLS, ISO8583, TLE, host, reversal, settlement, recovery, and security impact review.
+- Add payment evidence, protocol/state-integrity, and sensitive-data checks plus an opt-in Production governance rule.
+- Require evidence-backed impact, validation, rollback, and `HOLD CHANGE` behavior for unresolved BLOCKER/HIGH payment risk.
+- Keep the Continue-native and plugin skill copies aligned.
+
+## 0.1.0 - 2026-09-10
+
+- Add the portable Agent Plugins manifest and Codex compatibility manifest.
+- Package the `k-knowledge-support` skill with OpenAI metadata and GitHub tool
+  dependency.
+- Add the `repokan-projects` repository marketplace entry and project-level
+  enablement.
+- Preserve the Continue-native skill for dual compatibility.
