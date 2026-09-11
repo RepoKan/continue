@@ -1,0 +1,152 @@
+name: K Knowledge Support Validation
+
+on:
+  pull_request:
+    paths:
+      - ".agents/plugins/marketplace.json"
+      - ".codex/config.toml"
+      - ".continue/agents/payment-production-review.md"
+      - ".continue/checks/payment-*.md"
+      - ".continue/rules/payment-production-governance.md"
+      - ".continue/skills/k-knowledge-support/**"
+      - "plugins/k-knowledge-support/**"
+      - ".github/workflows/k-knowledge-support-validation.yml"
+  push:
+    branches:
+      - main
+      - "codex/k-knowledge-support-*"
+    paths:
+      - ".agents/plugins/marketplace.json"
+      - ".codex/config.toml"
+      - ".continue/agents/payment-production-review.md"
+      - ".continue/checks/payment-*.md"
+      - ".continue/rules/payment-production-governance.md"
+      - ".continue/skills/k-knowledge-support/**"
+      - "plugins/k-knowledge-support/**"
+      - ".github/workflows/k-knowledge-support-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: k-knowledge-support-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-skill:
+    name: Validate skill and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout head commit
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate head and build skill.zip
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json, re, sys, zipfile
+
+          root = Path('.').resolve()
+          name = 'k-knowledge-support'
+          continue_skill = root / '.continue/skills' / name
+          plugin_root = root / 'plugins' / name
+          plugin_skill = plugin_root / 'skills' / name
+          required_common = [
+              'SKILL.md',
+              'references/knowledge-record.md',
+              'references/payment-production.md',
+              'references/project-map.md',
+              'references/verification.md',
+          ]
+          required_plugin = required_common + ['agents/openai.yaml']
+
+          def die(message):
+              print(f'INVALID: {message}', file=sys.stderr)
+              raise SystemExit(1)
+
+          def read(path):
+              if not path.is_file():
+                  die(f'missing {path.relative_to(root)}')
+              return path.read_text(encoding='utf-8')
+
+          for rel in required_common:
+              left = continue_skill / rel
+              right = plugin_skill / rel
+              if read(left) != read(right):
+                  die(f'skill mirror differs: {rel}')
+          for rel in required_plugin:
+              read(plugin_skill / rel)
+
+          for skill in (continue_skill, plugin_skill):
+              text = read(skill / 'SKILL.md')
+              match = re.match(r'\A---\n(.*?)\n---(?:\n|\Z)', text, re.S)
+              if not match:
+                  die(f'{skill.relative_to(root)}/SKILL.md missing frontmatter')
+              frontmatter = {}
+              for line in match.group(1).splitlines():
+                  if not line.strip():
+                      continue
+                  if ':' not in line:
+                      die('invalid SKILL.md frontmatter')
+                  key, value = line.split(':', 1)
+                  frontmatter[key.strip()] = value.strip().strip('"\'')
+              if set(frontmatter) != {'name', 'description'} or frontmatter['name'] != name or not frontmatter['description']:
+                  die(f'{skill.relative_to(root)}/SKILL.md invalid name/description frontmatter')
+
+          payment = read(plugin_skill / 'references/payment-production.md')
+          for token in ('Production source', 'EMV/CTLS', 'ISO8583', 'TLE', 'IMPACT NOT PROVEN - HOLD CHANGE', 'rollback'):
+              if token not in payment:
+                  die(f'payment-production.md missing {token}')
+
+          portable = json.loads(read(plugin_root / 'plugin.json'))
+          codex = json.loads(read(plugin_root / '.codex-plugin/plugin.json'))
+          if portable.get('name') != name or codex.get('name') != name:
+              die('plugin manifest name mismatch')
+          if portable.get('version') != codex.get('version'):
+              die('plugin manifest version mismatch')
+          if not re.fullmatch(r'\d+\.\d+\.\d+', portable.get('version', '')):
+              die('plugin version is not semantic versioning')
+
+          marketplace = json.loads(read(root / '.agents/plugins/marketplace.json'))
+          matches = [item for item in marketplace.get('plugins', []) if item.get('name') == name]
+          if len(matches) != 1:
+              die('marketplace entry missing or duplicated')
+          source = matches[0].get('source', {})
+          if source.get('source') != 'local' or source.get('path') != './plugins/k-knowledge-support':
+              die('marketplace source is not the local plugin path')
+
+          config = read(root / '.codex/config.toml')
+          if '[plugins."k-knowledge-support@repokan-projects"]' not in config or not re.search(r'(?m)^enabled\s*=\s*true\s*$', config):
+              die('Codex plugin activation missing')
+
+          output = root / 'dist/skill.zip'
+          output.parent.mkdir(parents=True, exist_ok=True)
+          with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+              for path in sorted(plugin_skill.rglob('*')):
+                  if path.is_file() and '__pycache__' not in path.parts and not path.name.endswith('.pyc'):
+                      archive.write(path, f'{name}/{path.relative_to(plugin_skill).as_posix()}')
+          if output.stat().st_size > 25 * 1024 * 1024:
+              die('skill.zip exceeds 25 MB')
+
+          digest = hashlib.sha256(output.read_bytes()).hexdigest()
+          print(f'VALID: {name} v{portable["version"]}')
+          print('VALID: skill mirror, payment controls, manifests, marketplace, Codex activation')
+          print(f'PACKAGE: dist/skill.zip ({output.stat().st_size} bytes)')
+          print(f'SHA256: {digest}')
+          PY
+
+      - name: Upload validated skill.zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: k-knowledge-support-${{ github.sha }}
+          path: dist/skill.zip
+          if-no-files-found: error
+          retention-days: 14
