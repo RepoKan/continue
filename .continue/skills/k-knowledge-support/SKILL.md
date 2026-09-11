@@ -1,6 +1,6 @@
 ---
 name: k-knowledge-support
-description: Inspect, explain, diagnose, review, test, or safely change the K Knowledge Support Continue fork using project-local evidence. Use for architecture tracing, bug investigation, implementation planning, code changes, and knowledge capture in this repository; do not use for unrelated projects.
+description: Inspect, explain, diagnose, review, test, or safely change the K Knowledge Support Continue fork using project-local evidence. Use for architecture tracing, bug investigation, implementation planning, code changes, production-sensitive payment analysis, and knowledge capture in this repository; do not use for unrelated projects.
 ---
 
 # K Knowledge Support
@@ -33,7 +33,14 @@ Read only the reference needed for the task:
 
 - For ownership, module boundaries, skill discovery, or fork invariants, read [references/project-map.md](references/project-map.md).
 - Before changing or testing code, read [references/verification.md](references/verification.md).
+- For KTC Payment, EDC, SUNMI P3, EMV/CTLS, ISO8583, TLE, TMS/RKI, host, reversal, settlement, location-in-transaction, or Production debugging work, read [references/payment-production.md](references/payment-production.md) before reaching a conclusion or proposing a change.
 - When the user requests a reusable project note, decision record, or handoff, read [references/knowledge-record.md](references/knowledge-record.md).
+
+## Payment-critical routing
+
+When payment scope is active, treat the exact Production source/spec/log and the applicable approved vendor or host documentation as the evidence boundary. Do not generalize a field, message type, kernel behavior, key flow, or recovery path from another transaction without evidence. If required Production evidence is missing, label the gap and hold the change rather than guessing.
+
+For changes that can affect transaction outcome, card data, kernel data, ISO8583 payloads, TLE/session state, reversal, settlement, or host reconciliation, require an end-to-end impact trace plus validation and rollback evidence before declaring the change safe.
 
 ## Analyze the request
 

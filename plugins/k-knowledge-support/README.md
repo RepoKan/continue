@@ -7,8 +7,23 @@ service or add a user interface.
 ## Included skill
 
 - `k-knowledge-support` — inspects architecture, diagnoses defects, plans and
-  implements scoped changes, selects repository checks, and captures reusable
-  project knowledge when requested.
+  implements scoped changes, selects repository checks, captures reusable
+  project knowledge when requested, and applies Production-sensitive payment
+  evidence/impact controls for KTC Payment, EDC, SUNMI P3, EMV/CTLS, ISO8583,
+  TLE, host, reversal, settlement, and Production debugging.
+
+## Payment governance
+
+The repository-native `.continue/agents`, `.continue/checks`, and
+`.continue/rules` include dedicated payment review controls. The skill itself
+loads `references/payment-production.md` only when payment scope is active, so
+normal Continue engineering requests do not pay the context cost of the full
+payment verification workflow.
+
+Payment-critical work requires an exact Production baseline, applicable
+specification, end-to-end protocol/state impact trace, sensitive-data review,
+focused validation, and rollback evidence. Unresolved BLOCKER/HIGH findings or
+unproven payment impact produce `HOLD CHANGE` rather than an assumed safe merge.
 
 ## Use in this repository
 
@@ -19,6 +34,11 @@ then open the repository and use a prompt such as:
 
 > Use $k-knowledge-support to inspect config reload and explain the end-to-end
 > flow with repository evidence.
+
+For payment review, a prompt can be:
+
+> Use $k-knowledge-support to review this KTC Payment change for Production,
+> EMV/ISO8583/TLE impact, recovery behavior, security, validation, and rollback.
 
 The skill can also activate from a matching request without naming it directly.
 
