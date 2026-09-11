@@ -17,7 +17,7 @@ Use GitHub as an evidence system, not as a source of assumptions. Establish the 
 6. Gate merge on exact evidence: mergeability, expected head SHA, required review state, relevant validation, and rollback.
 7. After merge, re-fetch the target branch and validate the new head. Never treat pre-merge validation as proof of the merged head.
 
-Read [references/tool-routing.md](references/tool-routing.md) when selecting GitHub operations or diagnosing connector behavior. Read [references/project-lessons.md](references/project-lessons.md) when working in K Knowledge Supporting or when a current problem resembles the project incidents recorded there.
+Read [references/tool-routing.md](references/tool-routing.md) when selecting GitHub operations or diagnosing connector behavior. Read [references/ci-failure-classification.md](references/ci-failure-classification.md) before diagnosing Actions/CI failures so formatting, workflow-contract, dependency/setup, and actual test failures are not conflated. Read [references/project-lessons.md](references/project-lessons.md) when working in K Knowledge Supporting or when a current problem resembles the project incidents recorded there.
 
 ## Baseline and evidence rules
 

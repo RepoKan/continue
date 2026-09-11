@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 - 2026-09-11
+
+- Add CI failure classification for formatting, workflow/artifact contracts, dependency/setup failures, and actual application/test failures.
+- Capture the verified Main Branch artifact-republish incident and exact-head producer/consumer verification pattern.
+- Capture deterministic Prettier repair and the JetBrains FFmpeg setup diagnosis without conflating setup failures with test regressions.
+- Extend GitHub troubleshooter validation so the new CI reference must exist and remain identical across native and plugin skill copies.
+
 ## 0.1.2 - 2026-09-11
 
 - Add the `github-engineering-troubleshooter` skill to capture reusable GitHub

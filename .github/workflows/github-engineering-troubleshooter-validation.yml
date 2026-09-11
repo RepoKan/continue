@@ -59,6 +59,7 @@ jobs:
           plugin_skill = plugin_root / 'skills' / name
           required = [
               'SKILL.md',
+              'references/ci-failure-classification.md',
               'references/project-lessons.md',
               'references/tool-routing.md',
           ]
@@ -101,9 +102,14 @@ jobs:
                   die(f'{skill_md.relative_to(root)} contains TODO placeholder')
 
           lessons = read(plugin_skill / 'references/project-lessons.md')
-          for token in ('Confirmed project knowledge', 'read-only', 'mergeability', 'NO STATUS', 'expected head SHA', 'post-merge', 'publication boundary'):
+          for token in ('Confirmed project knowledge', 'read-only', 'mergeability', 'NO STATUS', 'expected head SHA', 'post-merge', 'publication boundary', 'Artifact republish', 'Formatting failures', 'Setup failures'):
               if token not in lessons:
                   die(f'project-lessons.md missing {token}')
+
+          classification = read(plugin_skill / 'references/ci-failure-classification.md')
+          for token in ('Formatting', 'artifact handoff', 'Dependency or setup failure', 'Application or test failure', 'exact PR-head verification', 'Rerun rule'):
+              if token not in classification:
+                  die(f'ci-failure-classification.md missing {token}')
 
           routing = read(plugin_skill / 'references/tool-routing.md')
           for token in ('statuses=[]', 'queued', 'Pull-request-triggered', 'wrapper ZIP', 'expected head SHA'):
@@ -140,7 +146,7 @@ jobs:
 
           digest = hashlib.sha256(output.read_bytes()).hexdigest()
           print(f'VALID: {name} in k-knowledge-support v{version}')
-          print('VALID: native/plugin mirror, project lessons, routing, manifests, README, CHANGELOG')
+          print('VALID: native/plugin mirror, project lessons, CI classification, routing, manifests, README, CHANGELOG')
           print(f'PACKAGE: dist/skill.zip ({output.stat().st_size} bytes)')
           print(f'SHA256: {digest}')
           PY
