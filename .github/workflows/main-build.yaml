@@ -11,97 +11,144 @@ on:
         description: "PR number to test with"
         required: true
 
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
 jobs:
   republish-pr-artifacts:
+    name: republish-pr-artifacts (${{ matrix.label }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
-        platform: [Linux, macOS]
+        include:
+          - label: Linux
+            source_artifact: vscode-extension-build-linux-x64
+            published_artifact: vscode-extension-build-Linux
+          - label: macOS
+            source_artifact: vscode-extension-build-darwin-arm64
+            published_artifact: vscode-extension-build-macOS
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 2 # Get the last 2 commits to find the merge commit
+          fetch-depth: 2
 
       - name: Get merged PR number
         id: get-pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TEST_PR_NUMBER: ${{ github.event.inputs.test_pr_number }}
         run: |
-          # Get PR number for the current commit using GitHub API
-          COMMIT_SHA=$(git rev-parse HEAD)
-          echo "Getting PR for commit: $COMMIT_SHA"
+          if [ -n "$TEST_PR_NUMBER" ]; then
+            PR_NUMBER="$TEST_PR_NUMBER"
+            echo "Using manually supplied PR number: $PR_NUMBER"
+          else
+            COMMIT_SHA=$(git rev-parse HEAD)
+            echo "Getting PR for commit: $COMMIT_SHA"
 
-          PR_NUMBER=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/commits/$COMMIT_SHA/pulls" \
-            | jq -r '.[0].number // empty')
+            PR_NUMBER=$(gh api \
+              "repos/${{ github.repository }}/commits/$COMMIT_SHA/pulls" \
+              --jq '.[0].number // empty')
+          fi
 
-          if [ -z "$PR_NUMBER" ]; then
-            echo "❌ Could not find PR for commit $COMMIT_SHA"
+          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "Could not resolve a valid PR number"
             exit 1
           fi
 
           echo "Found PR number: $PR_NUMBER"
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
-      - name: Find PR workflow run
+      - name: Find and wait for exact PR artifact workflow run
         id: find-run
         env:
           PR_NUMBER: ${{ steps.get-pr.outputs.pr_number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🔍 Getting branch name for PR #$PR_NUMBER..."
+          echo "Resolving source artifacts for PR #$PR_NUMBER..."
 
-          # Get the branch name for the PR
-          BRANCH_NAME=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json headRefName --jq '.headRefName')
+          PR_DATA=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER")
+          BRANCH_NAME=$(jq -r '.head.ref // empty' <<< "$PR_DATA")
+          PR_HEAD_SHA=$(jq -r '.head.sha // empty' <<< "$PR_DATA")
 
-          if [ -z "$BRANCH_NAME" ]; then
-            echo "❌ Could not find PR #$PR_NUMBER"
+          if [ -z "$BRANCH_NAME" ] || [ -z "$PR_HEAD_SHA" ]; then
+            echo "Could not resolve head ref/SHA for PR #$PR_NUMBER"
             exit 1
           fi
 
-          echo "Branch name: $BRANCH_NAME"
+          echo "PR head: $BRANCH_NAME@$PR_HEAD_SHA"
 
-          # Get the latest successful workflow run for the branch
-          RUN_ID=$(gh run list \
-            --repo "${{ github.repository }}" \
-            --workflow="pr_checks.yaml" \
-            --branch="$BRANCH_NAME" \
-            --json databaseId,status,conclusion \
-            --jq ".[] | select(.status == \"completed\" and .conclusion == \"success\") | .databaseId" \
-            | head -1)
+          RUN_ID=""
+          for attempt in {1..24}; do
+            RUN_ID=$(gh run list \
+              --repo "${{ github.repository }}" \
+              --workflow="pr-build-upload-vsix.yaml" \
+              --event=pull_request \
+              --limit=100 \
+              --json databaseId,headSha,createdAt \
+              --jq ".[] | select(.headSha == \"$PR_HEAD_SHA\") | .databaseId" \
+              | head -1)
+
+            if [ -n "$RUN_ID" ]; then
+              break
+            fi
+
+            echo "PR artifact workflow has not appeared yet (attempt $attempt/24); retrying in 5s..."
+            sleep 5
+          done
 
           if [ -z "$RUN_ID" ]; then
-            echo "❌ No successful workflow run found for PR #$PR_NUMBER (branch: $BRANCH_NAME)"
+            echo "No PR Build And Upload VSIX run found for exact PR head $PR_HEAD_SHA"
             exit 1
           fi
 
-          echo "Found successful workflow run: $RUN_ID"
-          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "Found PR artifact workflow run: $RUN_ID"
+          echo "Waiting for run $RUN_ID to complete successfully..."
+
+          if ! gh run watch "$RUN_ID" \
+            --repo "${{ github.repository }}" \
+            --exit-status; then
+            echo "PR artifact workflow run $RUN_ID did not complete successfully"
+            exit 1
+          fi
+
+          RUN_HEAD_SHA=$(gh run view "$RUN_ID" \
+            --repo "${{ github.repository }}" \
+            --json headSha \
+            --jq '.headSha')
+
+          if [ "$RUN_HEAD_SHA" != "$PR_HEAD_SHA" ]; then
+            echo "Run head mismatch: expected $PR_HEAD_SHA, got $RUN_HEAD_SHA"
+            exit 1
+          fi
+
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
       - name: Download PR artifact
         env:
           RUN_ID: ${{ steps.find-run.outputs.run_id }}
-          PLATFORM: ${{ matrix.platform }}
+          SOURCE_ARTIFACT: ${{ matrix.source_artifact }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "📥 Downloading vscode-extension-build-$PLATFORM artifact from run $RUN_ID..."
-
-          # Create temporary directory for download
+          echo "Downloading $SOURCE_ARTIFACT from run $RUN_ID..."
           mkdir -p ./temp-download
 
-          # Download the artifact from the PR workflow run
           if ! gh run download "$RUN_ID" \
             --repo "${{ github.repository }}" \
-            --name "vscode-extension-build-$PLATFORM" \
+            --name "$SOURCE_ARTIFACT" \
             --dir "./temp-download"; then
-            echo "❌ Failed to download artifact vscode-extension-build-$PLATFORM from run $RUN_ID"
+            echo "Failed to download artifact $SOURCE_ARTIFACT from run $RUN_ID"
             exit 1
           fi
 
-          echo "✅ Successfully downloaded artifact"
+          echo "Successfully downloaded $SOURCE_ARTIFACT"
 
       - name: Republish as main branch artifact
         uses: actions/upload-artifact@v7
         with:
-          name: vscode-extension-build-${{ matrix.platform }}
+          name: ${{ matrix.published_artifact }}
           path: ./temp-download/*
+          if-no-files-found: error
