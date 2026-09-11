@@ -41,12 +41,22 @@ This baseline was inspected at commit `5522c6f44ca0ac3528b37244818fbfa39b5af470`
 - Files beside `SKILL.md` are listed as supporting skill files and can be read on demand.
 - The CLI normalizes this skill to the slash command `/skill-k-knowledge-support`.
 
+### Knowledge mirror governance
+
+- Treat `.continue/skills/<skill-name>/` as the authoritative Project-owned skill source.
+- Treat `.claude/skills/<skill-name>/` as the Claude runtime mirror for every Project-owned skill with a corresponding `.continue/skills/<skill-name>/` source.
+- **Remark:** if `.continue/skills/k-knowledge-support/**` changes, the same candidate change must update `.claude/skills/k-knowledge-support/**`. `Claude Skill Mirror Validation` is expected to fail on a missing mirror, file-set drift, or byte drift. This failure is intentional and prevents knowledge drift between ChatGPT/Continue and Claude.
+- Keep the packaged `plugins/k-knowledge-support/skills/k-knowledge-support/` copy synchronized when the skill is distributed through the plugin.
+- Claude-native skills that have no Project-owned `.continue/skills/<skill-name>/` source, such as `docs-style`, are not reverse-mirrored into `.continue/skills`.
+- Do not bypass or weaken the mirror gate to make CI green; update the authoritative source and mirrors together, then validate the exact head SHA.
+
 Relevant implementation:
 
 - `extensions/cli/src/util/loadMarkdownSkills.ts`
 - `core/config/markdown/loadMarkdownSkills.ts`
 - `extensions/cli/src/tools/skills.ts`
 - `extensions/cli/src/slashCommands.ts`
+- `.github/workflows/claude-skill-mirror-validation.yml`
 
 ## Fork invariants
 
