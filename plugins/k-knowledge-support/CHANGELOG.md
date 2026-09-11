@@ -5,7 +5,8 @@
 - Add CI failure classification for formatting, workflow/artifact contracts, dependency/setup failures, and actual application/test failures.
 - Capture the verified Main Branch artifact-republish incident and exact-head producer/consumer verification pattern.
 - Capture deterministic Prettier repair and the JetBrains FFmpeg setup diagnosis without conflating setup failures with test regressions.
-- Extend GitHub troubleshooter validation so the new CI reference must exist and remain identical across native and plugin skill copies.
+- Add explicit PR-head checkout/assertion guidance after proving that default pull-request checkout can use a synthetic merge commit.
+- Extend both skill validation workflows so PR validation checks the exact PR head SHA and labels generated artifacts with that same SHA.
 
 ## 0.1.2 - 2026-09-11
 

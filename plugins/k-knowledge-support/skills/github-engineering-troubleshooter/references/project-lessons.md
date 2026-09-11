@@ -95,6 +95,12 @@ The minimal repair changed the action input from the stale fixed `7.1` selector 
 
 Reusable rule: classify the first causal layer, verify external asset/version contracts after cache misses, and prove the intended downstream test command actually starts before claiming a setup incident is resolved.
 
+### 15. Pull-request `github.sha` can be a synthetic merge commit
+
+During PR #5 skill validation, the workflow run metadata identified the branch head as `2e259253c302399fc951f27e536d2ab3ab6af0a1`, but default `actions/checkout@v6` fetched `refs/pull/5/merge` and placed the workspace on synthetic merge commit `29bd8622988ab90c0b35744154828dd2dffc639d`. The artifact name used `github.sha`, so it also carried the synthetic merge SHA.
+
+Reusable rule: if the claim is exact PR-head validation, resolve `github.event.pull_request.head.sha`, checkout that SHA explicitly, assert the workspace HEAD matches it, and label the artifact with the same SHA. Testing the synthetic merge result can still be useful, but it is a separate claim.
+
 ## Project decision
 
 For future K Knowledge Supporting GitHub work, use this troubleshooting sequence:

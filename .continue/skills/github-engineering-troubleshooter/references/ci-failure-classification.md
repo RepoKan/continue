@@ -21,6 +21,18 @@ Validate all sides of the handoff: workflow path/name, trigger, producer job, ar
 - Preserve externally consumed artifact names when correcting internal producer names unless a coordinated contract migration is intended.
 - After merge, verify the new target-branch head and the republished artifacts separately from the pre-merge producer artifacts.
 
+## Exact PR head versus synthetic merge commit
+
+For `pull_request` workflows, do not assume `github.sha` or a default `actions/checkout` checkout is the PR head commit. GitHub commonly evaluates the pull-request merge ref, and a default checkout can therefore place the workspace on a synthetic `refs/pull/<number>/merge` commit.
+
+When the validation claim is specifically "this exact PR head passed":
+
+1. Resolve the target as `github.event.pull_request.head.sha` for pull-request events and fall back to `github.sha` for push or manual runs.
+2. Pass that SHA explicitly to `actions/checkout`.
+3. Assert `git rev-parse HEAD` equals the resolved target SHA before running validation.
+4. Name or annotate produced artifacts with the same target SHA.
+5. Treat merge-result validation as a separate useful signal, not as a substitute for exact-head validation.
+
 ## Dependency or setup failure before tests
 
 If checkout, tool installation, cache restore, runtime setup, or an external download fails before the intended test command starts, do not report a test regression.
