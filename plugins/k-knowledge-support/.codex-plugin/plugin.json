@@ -24,10 +24,7 @@
     "longDescription": "Inspect, explain, diagnose, test, and safely update the K Knowledge Support Continue fork using project-local, GitHub, and Production-sensitive payment evidence.",
     "developerName": "EDCAPP",
     "category": "Productivity",
-    "capabilities": [
-      "Read",
-      "Write"
-    ],
+    "capabilities": ["Read", "Write"],
     "websiteURL": "https://github.com/RepoKan/continue",
     "defaultPrompt": [
       "Inspect this project and explain the relevant architecture.",

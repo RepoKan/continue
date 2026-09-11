@@ -16,21 +16,21 @@ This baseline was inspected at commit `5522c6f44ca0ac3528b37244818fbfa39b5af470`
 
 ## Major areas
 
-| Area | Responsibility | Useful starting points |
-| --- | --- | --- |
-| `core/` | Shared agent, configuration, model, context, indexing, protocol, and tool logic | `core/core.ts`, `core/config/`, `core/protocol/`, `core/tools/`, `core/llm/` |
-| `gui/` | React/Vite user interface shared by IDE integrations | `gui/src/`, `gui/src/redux/`, `gui/src/pages/`, `gui/src/components/` |
-| `extensions/vscode/` | VS Code extension host, commands, webview bridge, packaging, and E2E tests | `extensions/vscode/src/`, `extensions/vscode/package.json` |
-| `extensions/cli/` | `cn` command, TUI/headless modes, tools, hooks, permissions, sessions, and slash commands | `extensions/cli/src/index.ts`, `src/commands/`, `src/tools/`, `src/slashCommands.ts` |
-| `extensions/intellij/` | JetBrains integration in Kotlin, backed by the packaged core binary | `extensions/intellij/src/`, `extensions/intellij/build.gradle.kts` |
-| `packages/config-types/` | Shared configuration types | `packages/config-types/src/` |
-| `packages/config-yaml/` | YAML/Markdown parsing, schemas, and config validation | `packages/config-yaml/src/` |
-| `packages/openai-adapters/` | Provider adapters, including AI SDK and DeepSeek integration | `packages/openai-adapters/src/index.ts`, `src/apis/`, `src/types.ts` |
-| `packages/terminal-security/` | Terminal command security evaluation | `packages/terminal-security/src/` |
-| `packages/fetch/`, `packages/llm-info/` | Shared network and model metadata packages | Each package's `src/` and `package.json` |
-| `binary/` | Bundles core TypeScript and native assets for IDE/platform use | `binary/build.js`, `binary/README.md` |
-| `sync/` | Rust/Neon codebase-sync native module | `sync/Cargo.toml`, `sync/src/` |
-| `docs/`, `docs-site/` | Product documentation and its site | `docs/docs.json`, `docs/`, `docs-site/` |
+| Area                                    | Responsibility                                                                            | Useful starting points                                                               |
+| --------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `core/`                                 | Shared agent, configuration, model, context, indexing, protocol, and tool logic           | `core/core.ts`, `core/config/`, `core/protocol/`, `core/tools/`, `core/llm/`         |
+| `gui/`                                  | React/Vite user interface shared by IDE integrations                                      | `gui/src/`, `gui/src/redux/`, `gui/src/pages/`, `gui/src/components/`                |
+| `extensions/vscode/`                    | VS Code extension host, commands, webview bridge, packaging, and E2E tests                | `extensions/vscode/src/`, `extensions/vscode/package.json`                           |
+| `extensions/cli/`                       | `cn` command, TUI/headless modes, tools, hooks, permissions, sessions, and slash commands | `extensions/cli/src/index.ts`, `src/commands/`, `src/tools/`, `src/slashCommands.ts` |
+| `extensions/intellij/`                  | JetBrains integration in Kotlin, backed by the packaged core binary                       | `extensions/intellij/src/`, `extensions/intellij/build.gradle.kts`                   |
+| `packages/config-types/`                | Shared configuration types                                                                | `packages/config-types/src/`                                                         |
+| `packages/config-yaml/`                 | YAML/Markdown parsing, schemas, and config validation                                     | `packages/config-yaml/src/`                                                          |
+| `packages/openai-adapters/`             | Provider adapters, including AI SDK and DeepSeek integration                              | `packages/openai-adapters/src/index.ts`, `src/apis/`, `src/types.ts`                 |
+| `packages/terminal-security/`           | Terminal command security evaluation                                                      | `packages/terminal-security/src/`                                                    |
+| `packages/fetch/`, `packages/llm-info/` | Shared network and model metadata packages                                                | Each package's `src/` and `package.json`                                             |
+| `binary/`                               | Bundles core TypeScript and native assets for IDE/platform use                            | `binary/build.js`, `binary/README.md`                                                |
+| `sync/`                                 | Rust/Neon codebase-sync native module                                                     | `sync/Cargo.toml`, `sync/src/`                                                       |
+| `docs/`, `docs-site/`                   | Product documentation and its site                                                        | `docs/docs.json`, `docs/`, `docs-site/`                                              |
 
 ## Skill behavior in this repository
 
