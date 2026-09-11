@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.2 - 2026-09-11
+
+- Add the `github-engineering-troubleshooter` skill to capture reusable GitHub
+  repository, branch/ref/SHA, pull request, Actions/CI, artifact, and rollback
+  troubleshooting practices.
+- Add versioned K Knowledge Supporting GitHub problem-solving lessons as project
+  knowledge inside the new skill.
+- Preserve the read-first, feature-branch, exact-head, diff/impact, validation,
+  merge, and post-merge verification sequence learned during the v0.1.1 rollout.
+- Extend plugin metadata and CI validation for the new bundled skill.
+
 ## 0.1.1 - 2026-09-11
 
 - Add Production-sensitive KTC Payment routing and a dedicated payment verification reference to both skill copies.

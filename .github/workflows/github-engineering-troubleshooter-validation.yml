@@ -1,0 +1,154 @@
+name: GitHub Engineering Troubleshooter Validation
+
+on:
+  pull_request:
+    paths:
+      - ".continue/skills/github-engineering-troubleshooter/**"
+      - "plugins/k-knowledge-support/skills/github-engineering-troubleshooter/**"
+      - "plugins/k-knowledge-support/plugin.json"
+      - "plugins/k-knowledge-support/.codex-plugin/plugin.json"
+      - "plugins/k-knowledge-support/README.md"
+      - "plugins/k-knowledge-support/CHANGELOG.md"
+      - ".github/workflows/github-engineering-troubleshooter-validation.yml"
+  push:
+    branches:
+      - main
+      - "codex/github-engineering-*"
+    paths:
+      - ".continue/skills/github-engineering-troubleshooter/**"
+      - "plugins/k-knowledge-support/skills/github-engineering-troubleshooter/**"
+      - "plugins/k-knowledge-support/plugin.json"
+      - "plugins/k-knowledge-support/.codex-plugin/plugin.json"
+      - "plugins/k-knowledge-support/README.md"
+      - "plugins/k-knowledge-support/CHANGELOG.md"
+      - ".github/workflows/github-engineering-troubleshooter-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-engineering-troubleshooter-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-skill:
+    name: Validate GitHub troubleshooter and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout head commit
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate head and build skill.zip
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json, re, sys, zipfile
+
+          root = Path('.').resolve()
+          name = 'github-engineering-troubleshooter'
+          continue_skill = root / '.continue/skills' / name
+          plugin_root = root / 'plugins/k-knowledge-support'
+          plugin_skill = plugin_root / 'skills' / name
+          required = [
+              'SKILL.md',
+              'references/project-lessons.md',
+              'references/tool-routing.md',
+          ]
+
+          def die(message):
+              print(f'INVALID: {message}', file=sys.stderr)
+              raise SystemExit(1)
+
+          def read(path):
+              if not path.is_file():
+                  die(f'missing {path.relative_to(root)}')
+              return path.read_text(encoding='utf-8')
+
+          for rel in required:
+              left = continue_skill / rel
+              right = plugin_skill / rel
+              if read(left) != read(right):
+                  die(f'skill mirror differs: {rel}')
+          read(plugin_skill / 'agents/openai.yaml')
+
+          for skill_dir in (continue_skill, plugin_skill):
+              skill_md = skill_dir / 'SKILL.md'
+              text = read(skill_md)
+              match = re.match(r'\A---\n(.*?)\n---(?:\n|\Z)', text, re.S)
+              if not match:
+                  die(f'{skill_md.relative_to(root)} missing frontmatter')
+              frontmatter = {}
+              for line in match.group(1).splitlines():
+                  if not line.strip():
+                      continue
+                  if ':' not in line:
+                      die(f'{skill_md.relative_to(root)} invalid frontmatter')
+                  key, value = line.split(':', 1)
+                  frontmatter[key.strip()] = value.strip().strip('"\'')
+              if set(frontmatter) != {'name', 'description'}:
+                  die(f'{skill_md.relative_to(root)} frontmatter must contain only name and description')
+              if frontmatter['name'] != name or not frontmatter['description']:
+                  die(f'{skill_md.relative_to(root)} invalid name/description')
+              if 'TODO' in text:
+                  die(f'{skill_md.relative_to(root)} contains TODO placeholder')
+
+          lessons = read(plugin_skill / 'references/project-lessons.md')
+          for token in ('Confirmed project knowledge', 'read-only', 'mergeability', 'NO STATUS', 'expected head SHA', 'post-merge', 'publication boundary'):
+              if token not in lessons:
+                  die(f'project-lessons.md missing {token}')
+
+          routing = read(plugin_skill / 'references/tool-routing.md')
+          for token in ('statuses=[]', 'queued', 'Pull-request-triggered', 'wrapper ZIP', 'expected head SHA'):
+              if token not in routing:
+                  die(f'tool-routing.md missing {token}')
+
+          portable = json.loads(read(plugin_root / 'plugin.json'))
+          codex = json.loads(read(plugin_root / '.codex-plugin/plugin.json'))
+          if portable.get('name') != 'k-knowledge-support' or codex.get('name') != 'k-knowledge-support':
+              die('plugin manifest name mismatch')
+          if portable.get('version') != codex.get('version'):
+              die('plugin manifest version mismatch')
+          version = portable.get('version', '')
+          if not re.fullmatch(r'\d+\.\d+\.\d+', version):
+              die('plugin version is not semantic versioning')
+
+          if name not in read(plugin_root / 'README.md'):
+              die('README does not document GitHub troubleshooter')
+          if f'## {version} ' not in read(plugin_root / 'CHANGELOG.md'):
+              die(f'CHANGELOG missing plugin version {version}')
+
+          output = root / 'dist/skill.zip'
+          output.parent.mkdir(parents=True, exist_ok=True)
+          with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+              for path in sorted(plugin_skill.rglob('*')):
+                  if path.is_file() and '__pycache__' not in path.parts and not path.name.endswith('.pyc'):
+                      archive.write(path, f'{name}/{path.relative_to(plugin_skill).as_posix()}')
+          if output.stat().st_size > 25 * 1024 * 1024:
+              die('skill.zip exceeds 25 MB')
+          with zipfile.ZipFile(output) as archive:
+              bad = archive.testzip()
+              if bad:
+                  die(f'corrupt package member: {bad}')
+
+          digest = hashlib.sha256(output.read_bytes()).hexdigest()
+          print(f'VALID: {name} in k-knowledge-support v{version}')
+          print('VALID: native/plugin mirror, project lessons, routing, manifests, README, CHANGELOG')
+          print(f'PACKAGE: dist/skill.zip ({output.stat().st_size} bytes)')
+          print(f'SHA256: {digest}')
+          PY
+
+      - name: Upload validated skill.zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: github-engineering-troubleshooter-${{ github.sha }}
+          path: dist/skill.zip
+          if-no-files-found: error
+          retention-days: 14

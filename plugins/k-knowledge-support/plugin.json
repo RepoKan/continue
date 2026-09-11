@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "k-knowledge-support",
-  "version": "0.1.1",
-  "description": "Evidence-backed engineering and Production-sensitive payment support for the K Knowledge Support Continue fork.",
+  "version": "0.1.2",
+  "description": "Evidence-backed engineering, Production-sensitive payment, and GitHub troubleshooting support for the K Knowledge Support Continue fork.",
   "author": {
     "name": "EDCAPP",
     "url": "https://github.com/RepoKan"
@@ -14,13 +14,15 @@
     "code-inspection",
     "continue",
     "engineering",
-    "payment"
+    "payment",
+    "github",
+    "ci"
   ],
   "extensions": {
     "com.openai": {
       "interface": {
         "displayName": "K Knowledge Support",
-        "shortDescription": "Project inspection and payment engineering support",
+        "shortDescription": "Project, payment, and GitHub engineering support",
         "longDescription": "Inspect, explain, diagnose, test, and safely update the K Knowledge Support Continue fork using project-local, GitHub, and Production-sensitive payment evidence.",
         "developerName": "EDCAPP",
         "category": "Productivity",
@@ -32,7 +34,8 @@
         "defaultPrompt": [
           "Inspect this project and explain the relevant architecture.",
           "Diagnose this issue using repository evidence.",
-          "Review this KTC Payment change for Production, protocol, state, security, validation, and rollback impact."
+          "Review this KTC Payment change for Production, protocol, state, security, validation, and rollback impact.",
+          "Diagnose this GitHub branch, pull request, CI, Actions, or head-commit validation problem from exact repository evidence."
         ],
         "brandColor": "#0F766E"
       }
