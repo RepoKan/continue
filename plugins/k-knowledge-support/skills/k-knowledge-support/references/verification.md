@@ -11,20 +11,20 @@ Run commands from the owning package. Reuse installed dependencies when present;
 
 ## Checks by area
 
-| Changed area | Focused test | Static/build check |
-| --- | --- | --- |
-| `core/` Vitest (`*.vitest.ts`) | `cd core && npm run vitest -- path/to/file.vitest.ts` | `cd core && npm run tsc:check` |
-| `core/` Jest (`*.test.ts`) | `cd core && npm test -- path/to/file.test.ts` | `cd core && npm run lint` when appropriate |
-| `gui/` | `cd gui && npm test -- path/to/file.test.tsx` | `cd gui && npm run tsc:check` |
-| `extensions/cli/` | `cd extensions/cli && npm test -- path/to/file.test.ts` | `cd extensions/cli && npm run typecheck` |
-| `extensions/vscode/` | `cd extensions/vscode && npm test -- path/to/file.test.ts` | `cd extensions/vscode && npm run tsc:check` |
-| `packages/config-yaml/` | `cd packages/config-yaml && npm test -- path/to/file.test.ts` | `cd packages/config-yaml && npm run build` |
-| `packages/openai-adapters/` | `cd packages/openai-adapters && npm test -- path/to/file.test.ts` | `cd packages/openai-adapters && npm run build` |
-| `packages/fetch/` | `cd packages/fetch && npm test -- path/to/file.test.ts` | `cd packages/fetch && npm run build` |
-| `packages/terminal-security/` | `cd packages/terminal-security && npm test -- path/to/file.test.ts` | `cd packages/terminal-security && npm run build` |
-| `binary/` | `cd binary && npm test` | `cd binary && npm run rebuild` only when packaging logic is affected |
-| `sync/` | `cargo test --manifest-path sync/Cargo.toml` | `cargo check --manifest-path sync/Cargo.toml` |
-| `extensions/intellij/` | `cd extensions/intellij && ./gradlew test` | Use JDK 17, as set by the Gradle JVM toolchain |
+| Changed area                   | Focused test                                                        | Static/build check                                                   |
+| ------------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `core/` Vitest (`*.vitest.ts`) | `cd core && npm run vitest -- path/to/file.vitest.ts`               | `cd core && npm run tsc:check`                                       |
+| `core/` Jest (`*.test.ts`)     | `cd core && npm test -- path/to/file.test.ts`                       | `cd core && npm run lint` when appropriate                           |
+| `gui/`                         | `cd gui && npm test -- path/to/file.test.tsx`                       | `cd gui && npm run tsc:check`                                        |
+| `extensions/cli/`              | `cd extensions/cli && npm test -- path/to/file.test.ts`             | `cd extensions/cli && npm run typecheck`                             |
+| `extensions/vscode/`           | `cd extensions/vscode && npm test -- path/to/file.test.ts`          | `cd extensions/vscode && npm run tsc:check`                          |
+| `packages/config-yaml/`        | `cd packages/config-yaml && npm test -- path/to/file.test.ts`       | `cd packages/config-yaml && npm run build`                           |
+| `packages/openai-adapters/`    | `cd packages/openai-adapters && npm test -- path/to/file.test.ts`   | `cd packages/openai-adapters && npm run build`                       |
+| `packages/fetch/`              | `cd packages/fetch && npm test -- path/to/file.test.ts`             | `cd packages/fetch && npm run build`                                 |
+| `packages/terminal-security/`  | `cd packages/terminal-security && npm test -- path/to/file.test.ts` | `cd packages/terminal-security && npm run build`                     |
+| `binary/`                      | `cd binary && npm test`                                             | `cd binary && npm run rebuild` only when packaging logic is affected |
+| `sync/`                        | `cargo test --manifest-path sync/Cargo.toml`                        | `cargo check --manifest-path sync/Cargo.toml`                        |
+| `extensions/intellij/`         | `cd extensions/intellij && ./gradlew test`                          | Use JDK 17, as set by the Gradle JVM toolchain                       |
 
 Confirm the script still exists before running a command because package scripts can drift.
 

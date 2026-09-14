@@ -1,0 +1,113 @@
+name: Claude Skill Mirror Validation
+
+on:
+  pull_request:
+    paths:
+      - ".continue/skills/**"
+      - ".claude/skills/**"
+      - ".github/workflows/claude-skill-mirror-validation.yml"
+  push:
+    branches:
+      - main
+      - "codex/**"
+    paths:
+      - ".continue/skills/**"
+      - ".claude/skills/**"
+      - ".github/workflows/claude-skill-mirror-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+concurrency:
+  group: claude-skill-mirror-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-mirror:
+    name: Validate Continue to Claude skill mirror
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact target commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TARGET_SHA }}
+
+      - name: Verify exact target checkout
+        shell: bash
+        run: |
+          ACTUAL_SHA=$(git rev-parse HEAD)
+          echo "Target SHA: $TARGET_SHA"
+          echo "Actual SHA: $ACTUAL_SHA"
+          test "$ACTUAL_SHA" = "$TARGET_SHA"
+
+      - name: Validate all project-owned Claude mirrors
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import sys
+
+          root = Path('.').resolve()
+          source_root = root / '.continue/skills'
+          claude_root = root / '.claude/skills'
+
+          def die(message):
+              print(f'INVALID: {message}', file=sys.stderr)
+              raise SystemExit(1)
+
+          if not source_root.is_dir():
+              die('missing .continue/skills')
+          if not claude_root.is_dir():
+              die('missing .claude/skills')
+
+          source_skills = sorted(
+              path.name
+              for path in source_root.iterdir()
+              if path.is_dir() and (path / 'SKILL.md').is_file()
+          )
+          if not source_skills:
+              die('no project-owned skills found under .continue/skills')
+
+          manifest = []
+          for name in source_skills:
+              source = source_root / name
+              mirror = claude_root / name
+              if not (mirror / 'SKILL.md').is_file():
+                  die(f'missing Claude mirror for {name}')
+
+              source_files = sorted(
+                  p.relative_to(source).as_posix()
+                  for p in source.rglob('*')
+                  if p.is_file()
+              )
+              mirror_files = sorted(
+                  p.relative_to(mirror).as_posix()
+                  for p in mirror.rglob('*')
+                  if p.is_file()
+              )
+              if source_files != mirror_files:
+                  die(
+                      f'file-set drift for {name}: '
+                      f'source={source_files}, claude={mirror_files}'
+                  )
+
+              for rel in source_files:
+                  source_bytes = (source / rel).read_bytes()
+                  mirror_bytes = (mirror / rel).read_bytes()
+                  if source_bytes != mirror_bytes:
+                      die(f'byte drift for {name}/{rel}')
+                  digest = hashlib.sha256(source_bytes).hexdigest()
+                  manifest.append((name, rel, digest))
+
+              print(f'VALID: {name} ({len(source_files)} files)')
+
+          print(f'VALID: {len(source_skills)} project-owned skills mirrored to .claude/skills')
+          for name, rel, digest in manifest:
+              print(f'SHA256 {name}/{rel} {digest}')
+          PY

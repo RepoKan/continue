@@ -1,6 +1,6 @@
 {
   "name": "k-knowledge-support",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Evidence-backed engineering, Production-sensitive payment, and GitHub troubleshooting support for the K Knowledge Support Continue fork.",
   "author": {
     "name": "EDCAPP",
@@ -24,10 +24,7 @@
     "longDescription": "Inspect, explain, diagnose, test, and safely update the K Knowledge Support Continue fork using project-local, GitHub, and Production-sensitive payment evidence.",
     "developerName": "EDCAPP",
     "category": "Productivity",
-    "capabilities": [
-      "Read",
-      "Write"
-    ],
+    "capabilities": ["Read", "Write"],
     "websiteURL": "https://github.com/RepoKan/continue",
     "defaultPrompt": [
       "Inspect this project and explain the relevant architecture.",
