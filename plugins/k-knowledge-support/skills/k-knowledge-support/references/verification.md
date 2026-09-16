@@ -38,7 +38,7 @@ Confirm the script still exists before running a command because package scripts
 
 ## Regression-sensitive flows
 
-For changes near onboarding, profiles, configuration, telemetry, tools, MCP, or IDE startup, use `TESTING.md` as a manual regression inventory. Mark each applicable item as executed, not applicable, or unverified; do not copy its historical checkmarks as current results.
+For changes near onboarding, profiles, configuration, telemetry, tools, MCP, or IDE startup, use `TESTING.md` as a manual regression inventory. Mark each applicable item as executed, not applicable, or blocked.
 
 ## Result reporting
 

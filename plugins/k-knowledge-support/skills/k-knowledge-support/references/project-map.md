@@ -76,8 +76,8 @@ Treat those points as regression-sensitive, but confirm them against current cod
 
 ## Dependency observation
 
-The root `package.json` and lockfile declare `@ai-sdk/deepseek`, while the provider implementation and its own dependency also live in `packages/openai-adapters/`. Do not assume the root declaration is required or redundant without tracing install and release workflows. Avoid changing either lockfile incidentally.
+The root `package.json` and lockfile declare `@ai-sdk/deepseek`, while the provider implementation and its own dependency also live in `packages/openai-adapters/`. Do not assume the root declaration is the only or canonical source.
 
 ## Sensitive configuration
 
-`BUILD_DEPENDENCIES.md` lists environment-variable and secret names for publishing, providers, CI, signing, and integration tests. It does not contain usable secret values. Never print values sourced from `.env`, the environment, CI settings, or local credentials.
+`BUILD_DEPENDENCIES.md` lists environment-variable and secret names for publishing, providers, CI, signing, and integration tests. It does not contain usable secret values. Never print values sourced from those variables in logs or output.

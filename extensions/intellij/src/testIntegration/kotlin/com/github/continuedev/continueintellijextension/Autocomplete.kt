@@ -31,15 +31,32 @@ class Autocomplete {
                     clickTab("Main.java")
                 }
                 codeEditor {
+                    // Clear any existing text
+                    keyboard {
+                        shortcut("ctrl+a")
+                        delete()
+                    }
+                    
+                    // Type trigger text
                     keyboard {
                         enterText("TEST_USER_MESSAGE_0")
                         space()
                     }
-                    wait(2.seconds)
+                    
+                    // Trigger autocomplete with longer wait for plugin initialization
+                    wait(3.seconds)
                     keyboard {
                         tab()
                     }
-                    assertTrue(text.contains("TEST_LLM_RESPONSE_0"))
+                    
+                    // Wait for autocomplete response
+                    wait(5.seconds)
+                    
+                    val editorText = text
+                    assertTrue(
+                        editorText.contains("TEST_LLM_RESPONSE_0"),
+                        "Expected autocomplete response not found. Editor contains: $editorText"
+                    )
                 }
             }
         }
