@@ -29,6 +29,9 @@ on:
 permissions:
   contents: read
 
+env:
+  TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 concurrency:
   group: k-knowledge-support-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -39,8 +42,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout head commit
+      - name: Checkout exact target commit
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TARGET_SHA }}
+
+      - name: Verify exact target checkout
+        shell: bash
+        run: |
+          ACTUAL_SHA=$(git rev-parse HEAD)
+          echo "Target SHA: $TARGET_SHA"
+          echo "Actual SHA: $ACTUAL_SHA"
+          test "$ACTUAL_SHA" = "$TARGET_SHA"
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -146,7 +159,7 @@ jobs:
       - name: Upload validated skill.zip
         uses: actions/upload-artifact@v7
         with:
-          name: k-knowledge-support-${{ github.sha }}
+          name: k-knowledge-support-${{ env.TARGET_SHA }}
           path: dist/skill.zip
           if-no-files-found: error
           retention-days: 14

@@ -11,6 +11,7 @@ import com.intellij.ide.starter.project.NoProject
 import com.intellij.ide.starter.runner.Starter
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertTrue
+import java.awt.event.KeyEvent
 import java.io.File
 import kotlin.time.Duration.Companion.seconds
 
@@ -31,27 +32,27 @@ class Autocomplete {
                     clickTab("Main.java")
                 }
                 codeEditor {
-                    // Clear any existing text
+                    // Clear any existing text using the IntelliJ Driver keyboard API.
                     keyboard {
-                        shortcut("ctrl+a")
-                        delete()
+                        hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_A)
+                        backspace()
                     }
-                    
+
                     // Type trigger text
                     keyboard {
                         enterText("TEST_USER_MESSAGE_0")
                         space()
                     }
-                    
+
                     // Trigger autocomplete with longer wait for plugin initialization
                     wait(3.seconds)
                     keyboard {
                         tab()
                     }
-                    
+
                     // Wait for autocomplete response
                     wait(5.seconds)
-                    
+
                     val editorText = text
                     assertTrue(
                         editorText.contains("TEST_LLM_RESPONSE_0"),

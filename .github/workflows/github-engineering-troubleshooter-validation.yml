@@ -27,6 +27,9 @@ on:
 permissions:
   contents: read
 
+env:
+  TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 concurrency:
   group: github-engineering-troubleshooter-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -37,8 +40,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout head commit
+      - name: Checkout exact target commit
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TARGET_SHA }}
+
+      - name: Verify exact target checkout
+        shell: bash
+        run: |
+          ACTUAL_SHA=$(git rev-parse HEAD)
+          echo "Target SHA: $TARGET_SHA"
+          echo "Actual SHA: $ACTUAL_SHA"
+          test "$ACTUAL_SHA" = "$TARGET_SHA"
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -59,6 +72,7 @@ jobs:
           plugin_skill = plugin_root / 'skills' / name
           required = [
               'SKILL.md',
+              'references/ci-failure-classification.md',
               'references/project-lessons.md',
               'references/tool-routing.md',
           ]
@@ -101,9 +115,14 @@ jobs:
                   die(f'{skill_md.relative_to(root)} contains TODO placeholder')
 
           lessons = read(plugin_skill / 'references/project-lessons.md')
-          for token in ('Confirmed project knowledge', 'read-only', 'mergeability', 'NO STATUS', 'expected head SHA', 'post-merge', 'publication boundary'):
+          for token in ('Confirmed project knowledge', 'read-only', 'mergeability', 'NO STATUS', 'expected head SHA', 'post-merge', 'publication boundary', 'Artifact republish', 'Formatting failures', 'Setup failures', 'synthetic merge commit'):
               if token not in lessons:
                   die(f'project-lessons.md missing {token}')
+
+          classification = read(plugin_skill / 'references/ci-failure-classification.md')
+          for token in ('Formatting', 'artifact handoff', 'synthetic merge commit', 'Dependency or setup failure', 'Application or test failure', 'exact PR-head verification', 'Rerun rule'):
+              if token not in classification:
+                  die(f'ci-failure-classification.md missing {token}')
 
           routing = read(plugin_skill / 'references/tool-routing.md')
           for token in ('statuses=[]', 'queued', 'Pull-request-triggered', 'wrapper ZIP', 'expected head SHA'):
@@ -140,7 +159,7 @@ jobs:
 
           digest = hashlib.sha256(output.read_bytes()).hexdigest()
           print(f'VALID: {name} in k-knowledge-support v{version}')
-          print('VALID: native/plugin mirror, project lessons, routing, manifests, README, CHANGELOG')
+          print('VALID: native/plugin mirror, project lessons, CI classification, routing, manifests, README, CHANGELOG')
           print(f'PACKAGE: dist/skill.zip ({output.stat().st_size} bytes)')
           print(f'SHA256: {digest}')
           PY
@@ -148,7 +167,7 @@ jobs:
       - name: Upload validated skill.zip
         uses: actions/upload-artifact@v7
         with:
-          name: github-engineering-troubleshooter-${{ github.sha }}
+          name: github-engineering-troubleshooter-${{ env.TARGET_SHA }}
           path: dist/skill.zip
           if-no-files-found: error
           retention-days: 14
