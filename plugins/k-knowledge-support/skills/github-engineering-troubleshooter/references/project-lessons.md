@@ -73,6 +73,34 @@ Reusable rule: change the retrieval path, not the validation standard.
 
 Reusable rule: before every write to a public repo, scan the proposed content for confidential Production details and secrets.
 
+### 12. Artifact republish must bind producer and consumer contracts
+
+After PR #3 was merged, Main Branch Build #2 failed while republishing PR artifacts. The consumer referenced a nonexistent workflow filename, while the multi-platform VSIX artifacts were actually produced by a different workflow whose artifact names included platform and architecture. A second risk existed because the main push could start while the PR producer was still running, and branch-only lookup could select a stale successful run.
+
+The repair in PR #4 resolved the merged PR, bound the producer lookup to the exact PR head SHA, waited for that exact producer run to complete successfully, mapped the real Linux x64 and macOS arm64 source artifact names to the existing main artifact names, and then verified the resulting Main Branch Build on the new `main` head. Main Branch Build #3 completed successfully and published both legacy main artifact names.
+
+Reusable rule: treat workflow identity, exact head SHA, producer completion, source artifact identity, consumer naming, and post-merge verification as one artifact handoff contract.
+
+### 13. Formatting failures on generated skill/plugin content are deterministic
+
+After the skill/plugin rollout, the repository-wide Prettier gate reported six exact files: the native and plugin copies of two K Knowledge Support references plus both plugin manifest JSON files. The repair changed only those reported files to the repository's declared Prettier form. On PR #5 stage-one head `aeae1c6c79d47fb0f2f278924bab908aa9d19840`, `prettier-check` completed successfully.
+
+Reusable rule: when a formatter reports exact generated or mirrored files, fix those files with the repository formatter, preserve mirror equivalence, and prove the same formatter gate on the exact new head rather than classifying it as CI flakiness.
+
+### 14. Setup failures are not test regressions
+
+The JetBrains PR job failed before Gradle tests when `AnimMouse/setup-ffmpeg@v1` experienced a cache miss for pinned FFmpeg `7.1`. The action constructs the Linux download from the rolling BtbN `latest` release; the current release inventory no longer carried the requested old asset, so the downloaded response was not a valid xz stream and extraction failed before `./gradlew test testIntegration` could start.
+
+The minimal repair changed the action input from the stale fixed `7.1` selector to the action-supported `release` selector. Full success remains a validation property of the exact repaired head; the reusable diagnostic fact is that a dependency/setup failure before the intended test command is not evidence of a JetBrains code or test regression.
+
+Reusable rule: classify the first causal layer, verify external asset/version contracts after cache misses, and prove the intended downstream test command actually starts before claiming a setup incident is resolved.
+
+### 15. Pull-request `github.sha` can be a synthetic merge commit
+
+During PR #5 skill validation, the workflow run metadata identified the branch head as `2e259253c302399fc951f27e536d2ab3ab6af0a1`, but default `actions/checkout@v6` fetched `refs/pull/5/merge` and placed the workspace on synthetic merge commit `29bd8622988ab90c0b35744154828dd2dffc639d`. The artifact name used `github.sha`, so it also carried the synthetic merge SHA.
+
+Reusable rule: if the claim is exact PR-head validation, resolve `github.event.pull_request.head.sha`, checkout that SHA explicitly, assert the workspace HEAD matches it, and label the artifact with the same SHA. Testing the synthetic merge result can still be useful, but it is a separate claim.
+
 ## Project decision
 
 For future K Knowledge Supporting GitHub work, use this troubleshooting sequence:
