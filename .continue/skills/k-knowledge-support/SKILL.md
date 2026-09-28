@@ -35,6 +35,7 @@ Read only the reference needed for the task:
 - Before changing or testing code, read [references/verification.md](references/verification.md).
 - For KTC Payment, EDC, SUNMI P3, EMV/CTLS, ISO8583, TLE, TMS/RKI, host, reversal, settlement, location-in-transaction, or Production debugging work, read [references/payment-production.md](references/payment-production.md) before reaching a conclusion or proposing a change.
 - When the user requests a reusable project note, decision record, or handoff, read [references/knowledge-record.md](references/knowledge-record.md).
+- For Android application-development environment, Compose Multiplatform toolchain alignment, Room/KSP, permissions, CI, or weekly capability-review planning, read [references/android-application-development-environment.md](references/android-application-development-environment.md).
 
 ## Payment-critical routing
 
