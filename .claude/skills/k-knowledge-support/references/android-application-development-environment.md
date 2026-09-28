@@ -98,10 +98,11 @@ The CMP Toolchain Review should run weekly and report only meaningful deltas. Ea
 - GitHub repository, default branch, current head, and write permission — Confirmed before synchronization
 - Existing Notion KKS master and Android development record — Fetched before update
 - Existing Library record with the same title — Not found; create a new durable record
+- CMP Toolchain Review prompt scope — Updated to include the KKS environment audit; cadence, time zone, timing mode, title, and enabled state unchanged
 - Android project build or device tests — Not run; this is an environment/knowledge synchronization record, not a source-code release
 
 ## Open items
 
 - Re-verify the live toolchain matrices at the next scheduled review before recommending any upgrade.
 - Confirm the actual Android/CMP repository's current version catalog and module topology when source access is available.
-- Apply the prepared weekly automation prompt update only after the required separate management validation.
+- Monitor the next weekly run for correct source coverage, mirror checks, confidentiality handling, and concise delta-only reporting.
