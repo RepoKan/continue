@@ -12,7 +12,6 @@ import com.intellij.ide.starter.plugins.PluginConfigurator
 import com.intellij.ide.starter.project.NoProject
 import com.intellij.ide.starter.runner.Starter
 import org.junit.jupiter.api.Test
-import java.awt.event.KeyEvent
 import java.io.File
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -40,12 +39,6 @@ class Autocomplete {
                     clickTab("Main.java")
                 }
                 codeEditor {
-                    // Clear any existing text using the IntelliJ Driver keyboard API.
-                    keyboard {
-                        hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_A)
-                        backspace()
-                    }
-
                     // Type trigger text
                     keyboard {
                         enterText("TEST_USER_MESSAGE_0")
