@@ -54,18 +54,35 @@ class Autocomplete {
                         space()
                     }
 
-                    // Trigger autocomplete with longer wait for plugin initialization
+                    // Trigger autocomplete and accept the inline suggestion with
+                    // Tab. After a cold start on CI the first completion can take
+                    // several seconds to arrive; pressing Tab before the suggestion
+                    // is shown inserts a literal tab instead of accepting it, so
+                    // retry the accept step and only assert at the end.
                     wait(3.seconds)
-                    keyboard {
-                        tab()
-                    }
+                    var accepted = false
+                    var attempts = 0
+                    while (!accepted && attempts < 5) {
+                        attempts++
+                        keyboard {
+                            tab()
+                        }
+                        wait(2.seconds)
 
-                    // Wait for autocomplete response
-                    wait(5.seconds)
+                        if (text.contains("TEST_LLM_RESPONSE_0")) {
+                            accepted = true
+                        } else {
+                            // The suggestion was not accepted; the tab was
+                            // likely inserted literally. Remove it and retry.
+                            keyboard {
+                                backspace()
+                            }
+                        }
+                    }
 
                     val editorText = text
                     assertTrue(
-                        editorText.contains("TEST_LLM_RESPONSE_0"),
+                        accepted,
                         "Expected autocomplete response not found. Editor contains: $editorText"
                     )
                 }
