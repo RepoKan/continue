@@ -2,7 +2,6 @@ package com.github.continuedev.continueintellijextension
 
 import com.automation.remarks.junit5.Video
 import com.intellij.driver.sdk.ui.components.*
-import com.intellij.driver.sdk.ui.components.elements.waitForNoOpenedDialogs
 import com.intellij.driver.sdk.wait
 import com.intellij.driver.sdk.waitForIndicators
 import com.intellij.ide.starter.driver.engine.runIdeWithDriver
