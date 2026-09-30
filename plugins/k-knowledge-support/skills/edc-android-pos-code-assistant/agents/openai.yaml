@@ -1,0 +1,15 @@
+interface:
+  display_name: EDC Android POS Code Assistant
+  short_description: Senior Android POS/EDC payment engineering workflow for SUNMI,
+    X990, EMV, TLE, host, and device integration.
+  icon: terminal
+  color: blue
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
