@@ -1,0 +1,43 @@
+name: KKS Temporary Prettier Fix
+
+on:
+  push:
+    branches:
+      - codex/k-knowledge-support-tooling-20261001
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Install formatter dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Format K Knowledge tooling files
+        run: |
+          npx prettier --write             .claude/skills/k-knowledge-agent-hub/references/agent-tool-registry.md             .claude/skills/k-knowledge-agent-hub/references/amd-local-ai.md             .claude/skills/k-knowledge-agent-hub/references/android-compose-apk-reviewer.md             .claude/skills/k-knowledge-agent-hub/references/banking-payment-system-specialist-v3-enterprise.md             .claude/skills/k-knowledge-support/references/android-application-development-environment.md             .claude/skills/ktc-payment-inspector/references/output-contract.md             .claude/skills/ktc-payment-inspector/SKILL.md             .continue/skills/k-knowledge-agent-hub/references/agent-tool-registry.md             .continue/skills/k-knowledge-agent-hub/references/amd-local-ai.md             .continue/skills/k-knowledge-agent-hub/references/android-compose-apk-reviewer.md             .continue/skills/k-knowledge-agent-hub/references/banking-payment-system-specialist-v3-enterprise.md             .continue/skills/k-knowledge-support/references/android-application-development-environment.md             .continue/skills/ktc-payment-inspector/references/output-contract.md             .continue/skills/ktc-payment-inspector/SKILL.md             plugins/k-knowledge-support/skills/k-knowledge-agent-hub/references/agent-tool-registry.md             plugins/k-knowledge-support/skills/k-knowledge-agent-hub/references/amd-local-ai.md             plugins/k-knowledge-support/skills/k-knowledge-agent-hub/references/android-compose-apk-reviewer.md             plugins/k-knowledge-support/skills/k-knowledge-agent-hub/references/banking-payment-system-specialist-v3-enterprise.md             plugins/k-knowledge-support/skills/k-knowledge-support/references/android-application-development-environment.md             plugins/k-knowledge-support/skills/ktc-payment-inspector/references/output-contract.md             plugins/k-knowledge-support/skills/ktc-payment-inspector/SKILL.md
+
+      - name: Commit formatted files and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name "EDCAPP"
+          git config user.email "kantapon@loxbit.co.th"
+          git rm .github/workflows/kks-prettier-fix-temp.yml
+          git add             .claude/skills             .continue/skills             plugins/k-knowledge-support/skills
+          if git diff --cached --quiet; then
+            echo "No formatting changes required."
+            exit 0
+          fi
+          git commit -m "style: apply prettier to K Knowledge tooling"
+          git push origin HEAD:${{ github.ref_name }}
