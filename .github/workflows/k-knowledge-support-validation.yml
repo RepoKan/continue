@@ -8,7 +8,8 @@ on:
       - ".continue/agents/payment-production-review.md"
       - ".continue/checks/payment-*.md"
       - ".continue/rules/payment-production-governance.md"
-      - ".continue/skills/k-knowledge-support/**"
+      - ".continue/skills/**"
+      - ".claude/skills/**"
       - "plugins/k-knowledge-support/**"
       - ".github/workflows/k-knowledge-support-validation.yml"
   push:
@@ -21,7 +22,8 @@ on:
       - ".continue/agents/payment-production-review.md"
       - ".continue/checks/payment-*.md"
       - ".continue/rules/payment-production-governance.md"
-      - ".continue/skills/k-knowledge-support/**"
+      - ".continue/skills/**"
+      - ".claude/skills/**"
       - "plugins/k-knowledge-support/**"
       - ".github/workflows/k-knowledge-support-validation.yml"
   workflow_dispatch:
