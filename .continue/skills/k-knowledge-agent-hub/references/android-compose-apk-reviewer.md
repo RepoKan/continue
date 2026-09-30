@@ -14,11 +14,13 @@ Do not claim a project is APK-ready unless a Gradle build actually produced an A
 ## Workflow
 
 1. **Intake and classify**
+
    - Identify whether the input is an Android project archive, extracted project folder, code snippet, Gradle log, APK/AAR, config file, or reference spec.
    - If the user uploaded a project archive, inspect it before asking more questions unless the archive itself is unreadable.
    - Classify the project as Kotlin/Compose, Java legacy, mixed Android, library module, Sunmi/POS/EDC app, or serial/BLE/Wi-Fi transport prototype.
 
 2. **Run a baseline inspection when project files are available**
+
    - Use `scripts/inspect_android_project.py` on the project archive or extracted root.
    - Review `android_project_audit.md` first for a concise summary, then `android_project_audit.json` for exact file lists.
    - Use the script output to decide which files to open next. Do not treat automatic findings as final proof; verify important findings in source.
@@ -30,6 +32,7 @@ Do not claim a project is APK-ready unless a Gradle build actually produced an A
    ```
 
 3. **Review build readiness**
+
    - Inspect Gradle wrapper, AGP, Gradle, Kotlin, Compose compiler/plugin, compileSdk, minSdk, targetSdk, repositories, dependency declarations, local AAR/JAR references, native libraries, and ProGuard/R8 rules.
    - For build failures, identify the first real error and fix that before addressing downstream symptoms.
    - If a build is appropriate, use `scripts/run_gradle_build.sh` or run Gradle directly with `--stacktrace` and capture the log.
@@ -41,16 +44,19 @@ Do not claim a project is APK-ready unless a Gradle build actually produced an A
    ```
 
 4. **Review source and architecture**
+
    - For Compose: review state hoisting, recomposition, side effects, lifecycle-aware collection, navigation arguments, list keys, formatting, and main-thread blocking.
    - For Kotlin/Java: review null safety, structured concurrency, resource cleanup, lifecycle leaks, exception handling, and incremental migration strategy.
    - For POS/EDC: keep UI, transaction use cases, SDK/transport adapters, protocol framing, database, and host integration separated.
 
 5. **Review Sunmi/payment integration when present**
+
    - Verify PaySDK binding lifecycle and guard all module access until `onConnectPaySDK` has fired.
    - Check local AAR/Maven dependencies, ABI compatibility, callbacks, AIDL/reflection keep rules, and target hardware assumptions.
    - Validate transaction state handling for success, decline, timeout, unknown, inquiry, cancel, reversal, settlement, void, refund, and retry/idempotency flows.
 
 6. **Review security and compliance**
+
    - Never expose or repeat detected secret values. Mention only file paths and key names.
    - Flag full PAN, track data, CVV, PIN block, private keys, sign keys, KSN secrets, merchant IDs, terminal IDs, and production endpoints in source/logs/config.
    - Review `android:allowBackup`, debug flags, exported components, cleartext traffic, network security config, file providers, WebView debug, screenshots, clipboard, and logging.

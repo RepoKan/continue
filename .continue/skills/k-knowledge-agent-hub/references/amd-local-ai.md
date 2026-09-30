@@ -3,6 +3,7 @@
 Scope: **project-only**. This directory is not a global Lemonade install.
 
 Requested profile:
+
 - Model: `Qwen2.5-Coder-7B-Instruct-GGUF`
 - Recipe/backend family: `llamacpp`
 - Universal packaged fallback: `llamacpp:vulkan`

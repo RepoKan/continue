@@ -6,12 +6,12 @@ This registry is project-local to `K Knowledge Supporting`. It records downloade
 
 ## Registered downloaded items
 
-| Item | Detected source type | Project tool | Runtime status |
-|---|---|---|---|
-| Android Compose APK Reviewer | Valid Skill package with `SKILL.md` and `agents/openai.yaml` | `android_apk_review_agent` | Definition registered |
-| Banking Payment System Specialist V3 Enterprise | Agent/persona Markdown profile | `banking_payment_specialist` | Definition registered |
-| Payment EDC Global MCP | MCP package | `payment_project_guideline`, `android_payment_checklist` | Definition registered |
-| AMD Local AI Qwen Coder | Staged local-AI package | `amd_local_ai_coder` | Staged only; model/runtime not downloaded |
+| Item                                            | Detected source type                                         | Project tool                                             | Runtime status                            |
+| ----------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------- | ----------------------------------------- |
+| Android Compose APK Reviewer                    | Valid Skill package with `SKILL.md` and `agents/openai.yaml` | `android_apk_review_agent`                               | Definition registered                     |
+| Banking Payment System Specialist V3 Enterprise | Agent/persona Markdown profile                               | `banking_payment_specialist`                             | Definition registered                     |
+| Payment EDC Global MCP                          | MCP package                                                  | `payment_project_guideline`, `android_payment_checklist` | Definition registered                     |
+| AMD Local AI Qwen Coder                         | Staged local-AI package                                      | `amd_local_ai_coder`                                     | Staged only; model/runtime not downloaded |
 
 ## Governance
 

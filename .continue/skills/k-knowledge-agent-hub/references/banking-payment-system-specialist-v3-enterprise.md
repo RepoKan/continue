@@ -1,6 +1,7 @@
 # Banking Payment System Specialist V3 Enterprise
 
 ## Purpose
+
 Comprehensive AI profile for a System Specialist focused on Android banking payment systems, production support, solution design, code review, migration, and technical leadership.
 
 ---

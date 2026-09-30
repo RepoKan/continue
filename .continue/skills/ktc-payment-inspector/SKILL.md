@@ -16,12 +16,14 @@ Keep the skill as the control plane. Treat the pinned private Knowledge Master a
 Follow these steps in order:
 
 1. Establish inspection identity.
+
    - Record repository, base SHA, head SHA or exact source snapshot identity.
    - Record the Knowledge Master SHA when available.
    - Record the applicable specification revision and runtime evidence identity when relevant.
    - If Production readiness depends on evidence that is missing, mark the affected conclusion `HOLD - IMPACT NOT PROVEN`.
 
 2. Classify affected domains.
+
    - Android / SUNMI SDK
    - Location / Field 61
    - ISO8583 / host mapping
@@ -33,6 +35,7 @@ Follow these steps in order:
 3. Load source authority rules from `references/source-authority.md`.
 
 4. Load the domain references that match the change.
+
    - Location or Field 61: `references/location-field61.md`
    - ISO8583 or transaction state: `references/iso8583-transaction-lifecycle.md`
    - EMV, CTLS, kernel callbacks, tags, or Field 55: `references/emv-ctls.md`
@@ -40,21 +43,25 @@ Follow these steps in order:
    - Sensitive data, logs, signing, keys, or credentials: `references/security-logging.md`
 
 5. Inspect the actual change and surrounding code.
+
    - Read the full diff, not only the changed lines.
    - Trace callers, callees, state holders, callbacks, persistence, builders, SDK boundaries, and network/host paths as applicable.
    - Identify the exact file, class, function, field, parameter, and data object involved.
    - Do not claim no impact until the relevant downstream path has been checked.
 
 6. Compare current behavior to approved business rules and specification evidence.
+
    - Separate classification logic from routing logic.
    - Separate device behavior from host behavior.
    - Separate confirmed requirements from assumptions or derived guidance.
    - Never invent missing Production parameter semantics.
 
 7. Evaluate transaction-lifecycle impact.
+
    - Check timeout ambiguity, duplicate prevention, reversal/advice, persistence, retry, settlement, batch, and reconciliation implications when applicable.
 
 8. Build a validation matrix.
+
    - Cover happy path, boundary conditions, null/timeout/error paths, callbacks, retry behavior, and regression-sensitive transaction types.
    - Add contact/contactless, host-response, or settlement cases when the change can affect them.
 
