@@ -140,6 +140,11 @@ runs:
         for dir in $(find build/idea-sandbox -maxdepth 3 -type d -name log 2>/dev/null); do
           cp -r "$dir" build/reports/"$(echo $dir | tr '/' '_')"
         done
+        # Starter-based integration tests (runIdeWithDriver) keep IDE logs under
+        # out/ide-tests/tests/<IC-build>/testExample/log
+        for dir in $(find out/ide-tests -type d -name log 2>/dev/null); do
+          cp -r "$dir" build/reports/"$(echo $dir | tr '/' '_')"
+        done
         # Continue core log (it may be written under the test global dir or HOME)
         for coreLog in src/testIntegration/kotlin/com/github/continuedev/continueintellijextension/test-continue/logs/core.log \
                        "$HOME/.continue/logs/core.log" \

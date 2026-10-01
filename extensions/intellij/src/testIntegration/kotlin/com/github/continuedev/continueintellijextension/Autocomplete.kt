@@ -144,23 +144,26 @@ class Autocomplete {
 
     /**
      * The IDE sandbox idea.log names plugin startup problems (core spawn
-     * failures, config errors, extension activation crashes).
+     * failures, config errors, extension activation crashes). Starter-based
+     * runs (runIdeWithDriver) write it under the IDE tests dir
+     * (out/ide-tests/tests/IC-<build>/<name>/log), not the plugin sandbox.
      */
     private fun ideaLogTail(): String {
         return try {
-            val pluginDir = File(System.getProperty("CONTINUE_PLUGIN_DIR"))
-            // Sandbox root is build/idea-sandbox/IC-<version>; idea.log lives under its system/log dir.
-            val sandboxRoot = pluginDir.parentFile?.parentFile
-            val logDir = sandboxRoot?.resolve("system")?.resolve("log")
-                ?: sandboxRoot?.walkTopDown()?.firstOrNull { it.isDirectory && it.name == "log" }
-            val ideaLog = logDir?.resolve("idea.log")
-            if (ideaLog?.exists() == true) {
+            val logDirs = listOf(
+                File("out/ide-tests/tests"),
+                File("build/idea-sandbox"),
+            )
+            val ideaLog = logDirs.flatMap { root ->
+                if (root.exists()) root.walkTopDown().filter { it.isFile && it.name == "idea.log" } else emptySequence()
+            }.maxByOrNull { it.lastModified() }
+            if (ideaLog != null) {
                 ideaLog.readLines()
-                    .filter { it.contains("continue", ignoreCase = true) || it.contains("ERROR", ignoreCase = false) }
+                    .filter { it.contains("continue", ignoreCase = true) || it.contains("ERROR") }
                     .takeLast(30)
                     .joinToString(" | ")
             } else {
-                "no idea.log under ${sandboxRoot?.path}"
+                "no idea.log under ${logDirs.map { it.path }}"
             }
         } catch (e: Exception) {
             "error: ${e.message}"
