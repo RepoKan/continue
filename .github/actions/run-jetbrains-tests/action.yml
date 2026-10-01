@@ -135,11 +135,18 @@ runs:
       run: |
         cd extensions/intellij
         mkdir -p build/reports
-        # Sandbox logs can live in several locations depending on the IDE/test
-        # framework version; copy whatever exists.
-        for dir in build/idea-sandbox/system/log build/idea-sandbox/log build/testIntegration/idea-sandbox/system/log; do
-          if [ -d "$dir" ]; then
-            cp -r "$dir" build/reports/"$(echo $dir | tr '/' '_')"
+        # Sandbox logs live under build/idea-sandbox/IC-<version>/{system,config}/log
+        # depending on the IDE/test framework version; copy whatever exists.
+        for dir in $(find build/idea-sandbox -maxdepth 3 -type d -name log 2>/dev/null); do
+          cp -r "$dir" build/reports/"$(echo $dir | tr '/' '_')"
+        done
+        # Continue core log (it may be written under the test global dir or HOME)
+        for coreLog in src/testIntegration/kotlin/com/github/continuedev/continueintellijextension/test-continue/logs/core.log \
+                       "$HOME/.continue/logs/core.log" \
+                       "$HOME/.continue/index/logs/core.log"; do
+          if [ -f "$coreLog" ]; then
+            mkdir -p build/reports/core-logs
+            cp "$coreLog" build/reports/core-logs/"$(echo $coreLog | md5sum | cut -c1-8)"-core.log
           fi
         done
         # Also capture the IDE starter temp dirs if present

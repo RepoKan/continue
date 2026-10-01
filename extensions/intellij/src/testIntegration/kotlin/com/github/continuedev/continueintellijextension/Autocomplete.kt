@@ -82,7 +82,8 @@ class Autocomplete {
                             "Autocomplete response never appeared after $maxAttempts attempts. " +
                                 "Editor contains: \"$text\". " +
                                 "Core binary check: ${coreBinaryCheck()}; " +
-                                "core log tail: ${coreLogTail()}"
+                                "core log tail: ${coreLogTail()}; " +
+                                "idea log tail: ${ideaLogTail()}"
                         )
                     }
                 }
@@ -115,9 +116,9 @@ class Autocomplete {
 
     /**
      * Core writes its log under $CONTINUE_GLOBAL_DIR/logs/core.log (the test task
-     * points CONTINUE_GLOBAL_DIR at the checked-in test-continue directory).
-     * Its tail usually names the exact failure (config parse error, provider
-     * error, wasm abort, etc.).
+     * points CONTINUE_GLOBAL_DIR at the checked-in test-continue directory), but
+     * some setups fall back to $HOME/.continue/logs/core.log. Its tail usually
+     * names the exact failure (config parse error, provider error, wasm abort).
      */
     private fun coreLogTail(): String {
         return try {
@@ -125,11 +126,41 @@ class Autocomplete {
                 System.getenv("CONTINUE_GLOBAL_DIR")
                     ?: File(System.getProperty("user.dir"), "src/testIntegration/kotlin/com/github/continuedev/continueintellijextension/test-continue").path
             )
-            val coreLog = File(globalDir, "logs/core.log")
-            if (coreLog.exists()) {
-                coreLog.readLines().takeLast(30).joinToString(" | ")
+            val candidates = listOf(
+                File(globalDir, "logs/core.log"),
+                File(System.getProperty("user.home"), ".continue/logs/core.log"),
+                File(System.getProperty("user.home"), ".continue/index/logs/core.log"),
+            )
+            val coreLog = candidates.firstOrNull { it.exists() }
+            if (coreLog != null) {
+                "${coreLog.path}: " + coreLog.readLines().takeLast(30).joinToString(" | ")
             } else {
-                "no core.log at ${coreLog.path} (dir: ${globalDir.listFiles()?.joinToString(", ") { it.name }.orEmpty()})"
+                "no core.log in ${candidates.map { it.path }} (global dir: ${globalDir.listFiles()?.joinToString(", ") { it.name }.orEmpty()}; home: ${File(System.getProperty("user.home"), ".continue").listFiles()?.joinToString(", ") { it.name }.orEmpty()})"
+            }
+        } catch (e: Exception) {
+            "error: ${e.message}"
+        }
+    }
+
+    /**
+     * The IDE sandbox idea.log names plugin startup problems (core spawn
+     * failures, config errors, extension activation crashes).
+     */
+    private fun ideaLogTail(): String {
+        return try {
+            val pluginDir = File(System.getProperty("CONTINUE_PLUGIN_DIR"))
+            // Sandbox root is build/idea-sandbox/IC-<version>; idea.log lives under its system/log dir.
+            val sandboxRoot = pluginDir.parentFile?.parentFile
+            val logDir = sandboxRoot?.resolve("system")?.resolve("log")
+                ?: sandboxRoot?.walkTopDown()?.firstOrNull { it.isDirectory && it.name == "log" }
+            val ideaLog = logDir?.resolve("idea.log")
+            if (ideaLog?.exists() == true) {
+                ideaLog.readLines()
+                    .filter { it.contains("continue", ignoreCase = true) || it.contains("ERROR", ignoreCase = false) }
+                    .takeLast(30)
+                    .joinToString(" | ")
+            } else {
+                "no idea.log under ${sandboxRoot?.path}"
             }
         } catch (e: Exception) {
             "error: ${e.message}"
