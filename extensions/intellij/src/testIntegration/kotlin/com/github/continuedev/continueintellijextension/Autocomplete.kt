@@ -3,15 +3,18 @@ package com.github.continuedev.continueintellijextension
 import com.automation.remarks.junit5.Video
 import com.intellij.driver.sdk.ui.components.*
 import com.intellij.driver.sdk.wait
+import com.intellij.driver.sdk.waitForIndicators
 import com.intellij.ide.starter.driver.engine.runIdeWithDriver
 import com.intellij.ide.starter.ide.IdeProductProvider
 import com.intellij.ide.starter.models.TestCase
 import com.intellij.ide.starter.plugins.PluginConfigurator
 import com.intellij.ide.starter.project.NoProject
 import com.intellij.ide.starter.runner.Starter
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import java.awt.event.KeyEvent
 import java.io.File
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class Autocomplete {
@@ -26,23 +29,110 @@ class Autocomplete {
                 createNewProjectButton.click()
                 button("Create").click()
             }
+
+            // New Java projects may trigger an automatic JDK download on clean CI runners.
+            // Wait for project setup/background work to finish before sending keyboard input,
+            // otherwise the download dialog can steal focus and truncate the trigger text.
+            waitForIndicators(5.minutes)
+
             ideFrame {
+                waitForNoOpenedDialogs()
+
                 editorTabs {
                     clickTab("Main.java")
                 }
                 codeEditor {
+                    // Clear any existing text using the IntelliJ Driver keyboard API.
+                    keyboard {
+                        hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_A)
+                        backspace()
+                    }
+
+                    // Type trigger text
                     keyboard {
                         enterText("TEST_USER_MESSAGE_0")
                         space()
                     }
-                    wait(2.seconds)
-                    keyboard {
-                        tab()
+
+                    // On a cold CI start the Continue core process must boot and load the
+                    // test config before it can serve completions. Press Tab to accept the
+                    // inline suggestion once it appears; if it was not up yet, Tab inserts
+                    // a literal tab which we remove before the next attempt.
+                    var found = false
+                    var attempts = 0
+                    val maxAttempts = 8
+                    while (!found && attempts < maxAttempts) {
+                        attempts++
+                        wait(4.seconds)
+                        keyboard {
+                            tab()
+                        }
+                        wait(2.seconds)
+                        found = text.contains("TEST_LLM_RESPONSE_0")
+                        if (!found) {
+                            keyboard {
+                                backspace()
+                            }
+                        }
                     }
-                    assertTrue(text.contains("TEST_LLM_RESPONSE_0"))
+
+                    if (!found) {
+                        assertTrue(
+                            found,
+                            "Autocomplete response never appeared after $maxAttempts attempts. " +
+                                "Editor contains: \"$text\". " +
+                                "Core binary check: ${coreBinaryCheck()}; " +
+                                "core log tail: ${coreLogTail()}"
+                        )
+                    }
                 }
             }
         }
     }
 
+    /**
+     * The plugin sandbox must contain the packaged Continue core binary; if the
+     * prepareSandbox copy step failed, autocomplete can never work and the test
+     * should say so explicitly instead of timing out invisibly.
+     */
+    private fun coreBinaryCheck(): String {
+        return try {
+            val pluginDir = File(System.getProperty("CONTINUE_PLUGIN_DIR"))
+            val coreDir = File(pluginDir, "core")
+            val binary = File(coreDir, "linux-x64/continue-binary")
+            when {
+                binary.exists() -> "binary OK at ${binary.path}"
+                coreDir.exists() ->
+                    "binary MISSING; core dir contains: " +
+                        coreDir.walkTopDown().take(40).joinToString(", ") { it.relativeTo(pluginDir).path }
+                else -> "core dir MISSING entirely under ${pluginDir.path}: " +
+                    pluginDir.listFiles()?.joinToString(", ") { it.name }.orEmpty()
+            }
+        } catch (e: Exception) {
+            "error: ${e.message}"
+        }
+    }
+
+    /**
+     * Core writes its log under $CONTINUE_GLOBAL_DIR/logs/core.log (the test task
+     * points CONTINUE_GLOBAL_DIR at the checked-in test-continue directory).
+     * Its tail usually names the exact failure (config parse error, provider
+     * error, wasm abort, etc.).
+     */
+    private fun coreLogTail(): String {
+        return try {
+            val globalDir = File(
+                System.getenv("CONTINUE_GLOBAL_DIR")
+                    ?: File(System.getProperty("user.dir"), "src/testIntegration/kotlin/com/github/continuedev/continueintellijextension/test-continue").path
+            )
+            val coreLog = File(globalDir, "logs/core.log")
+            if (coreLog.exists()) {
+                coreLog.readLines().takeLast(30).joinToString(" | ")
+            } else {
+                "no core.log at ${coreLog.path} (dir: ${globalDir.listFiles()?.joinToString(", ") { it.name }.orEmpty()})"
+            }
+        } catch (e: Exception) {
+            "error: ${e.message}"
+        }
+    }
 }
