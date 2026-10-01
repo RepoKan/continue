@@ -10,8 +10,8 @@ import com.intellij.ide.starter.models.TestCase
 import com.intellij.ide.starter.plugins.PluginConfigurator
 import com.intellij.ide.starter.project.NoProject
 import com.intellij.ide.starter.runner.Starter
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import java.awt.event.KeyEvent
 import java.io.File
 import kotlin.time.Duration.Companion.minutes
@@ -54,40 +54,85 @@ class Autocomplete {
                         space()
                     }
 
-                    // Trigger autocomplete and accept the inline suggestion with
-                    // Tab. After a cold start on CI the first completion can take
-                    // several seconds to arrive; pressing Tab before the suggestion
-                    // is shown inserts a literal tab instead of accepting it, so
-                    // retry the accept step and only assert at the end.
-                    wait(3.seconds)
-                    var accepted = false
+                    // On a cold CI start the Continue core process must boot and load the
+                    // test config before it can serve completions. Press Tab to accept the
+                    // inline suggestion once it appears; if it was not up yet, Tab inserts
+                    // a literal tab which we remove before the next attempt.
+                    var found = false
                     var attempts = 0
-                    while (!accepted && attempts < 5) {
+                    val maxAttempts = 8
+                    while (!found && attempts < maxAttempts) {
                         attempts++
+                        wait(4.seconds)
                         keyboard {
                             tab()
                         }
                         wait(2.seconds)
-
-                        if (text.contains("TEST_LLM_RESPONSE_0")) {
-                            accepted = true
-                        } else {
-                            // The suggestion was not accepted; the tab was
-                            // likely inserted literally. Remove it and retry.
+                        found = text.contains("TEST_LLM_RESPONSE_0")
+                        if (!found) {
                             keyboard {
                                 backspace()
                             }
                         }
                     }
 
-                    val editorText = text
-                    assertTrue(
-                        accepted,
-                        "Expected autocomplete response not found. Editor contains: $editorText"
-                    )
+                    if (!found) {
+                        assertTrue(
+                            found,
+                            "Autocomplete response never appeared after $maxAttempts attempts. " +
+                                "Editor contains: \"$text\". " +
+                                "Core binary check: ${coreBinaryCheck()}; " +
+                                "core log tail: ${coreLogTail()}"
+                        )
+                    }
                 }
             }
         }
     }
 
+    /**
+     * The plugin sandbox must contain the packaged Continue core binary; if the
+     * prepareSandbox copy step failed, autocomplete can never work and the test
+     * should say so explicitly instead of timing out invisibly.
+     */
+    private fun coreBinaryCheck(): String {
+        return try {
+            val pluginDir = File(System.getProperty("CONTINUE_PLUGIN_DIR"))
+            val coreDir = File(pluginDir, "core")
+            val binary = File(coreDir, "linux-x64/continue-binary")
+            when {
+                binary.exists() -> "binary OK at ${binary.path}"
+                coreDir.exists() ->
+                    "binary MISSING; core dir contains: " +
+                        coreDir.walkTopDown().take(40).joinToString(", ") { it.relativeTo(pluginDir).path }
+                else -> "core dir MISSING entirely under ${pluginDir.path}: " +
+                    pluginDir.listFiles()?.joinToString(", ") { it.name }.orEmpty()
+            }
+        } catch (e: Exception) {
+            "error: ${e.message}"
+        }
+    }
+
+    /**
+     * Core writes its log under $CONTINUE_GLOBAL_DIR/logs/core.log (the test task
+     * points CONTINUE_GLOBAL_DIR at the checked-in test-continue directory).
+     * Its tail usually names the exact failure (config parse error, provider
+     * error, wasm abort, etc.).
+     */
+    private fun coreLogTail(): String {
+        return try {
+            val globalDir = File(
+                System.getenv("CONTINUE_GLOBAL_DIR")
+                    ?: File(System.getProperty("user.dir"), "src/testIntegration/kotlin/com/github/continuedev/continueintellijextension/test-continue").path
+            )
+            val coreLog = File(globalDir, "logs/core.log")
+            if (coreLog.exists()) {
+                coreLog.readLines().takeLast(30).joinToString(" | ")
+            } else {
+                "no core.log at ${coreLog.path} (dir: ${globalDir.listFiles()?.joinToString(", ") { it.name }.orEmpty()})"
+            }
+        } catch (e: Exception) {
+            "error: ${e.message}"
+        }
+    }
 }
