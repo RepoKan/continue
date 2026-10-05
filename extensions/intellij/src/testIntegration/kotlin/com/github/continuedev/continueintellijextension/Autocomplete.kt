@@ -159,8 +159,12 @@ class Autocomplete {
             }.maxByOrNull { it.lastModified() }
             if (ideaLog != null) {
                 ideaLog.readLines()
-                    .filter { it.contains("continue", ignoreCase = true) || it.contains("ERROR") }
-                    .takeLast(30)
+                    .filter {
+                        it.contains("continue", ignoreCase = true) ||
+                            it.contains("ERROR") ||
+                            it.contains("unexpected")
+                    }
+                    .takeLast(40)
                     .joinToString(" | ")
             } else {
                 "no idea.log under ${logDirs.map { it.path }}"

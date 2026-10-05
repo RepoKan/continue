@@ -141,9 +141,15 @@ runs:
           cp -r "$dir" build/reports/"$(echo $dir | tr '/' '_')"
         done
         # Starter-based integration tests (runIdeWithDriver) keep IDE logs under
-        # out/ide-tests/tests/<IC-build>/testExample/log
-        for dir in $(find out/ide-tests -type d -name log 2>/dev/null); do
-          cp -r "$dir" build/reports/"$(echo $dir | tr '/' '_')"
+        # out/ide-tests/tests/<IC-build>/testExample/log. The Starter writes this at
+        # the *repo root* (the driver reports screenshot paths like
+        # file://$GITHUB_WORKSPACE/out/ide-tests/...), not under extensions/intellij,
+        # so search both.
+        for root in out/ide-tests "$GITHUB_WORKSPACE/out/ide-tests" "$GITHUB_WORKSPACE/../out/ide-tests"; do
+          for dir in $(find "$root" -type d -name log 2>/dev/null || true); do
+            name=$(echo "${dir#$GITHUB_WORKSPACE/}" | tr '/' '_')
+            cp -r "$dir" "build/reports/${name}"
+          done
         done
         # Continue core log (it may be written under the test global dir or HOME)
         for coreLog in src/testIntegration/kotlin/com/github/continuedev/continueintellijextension/test-continue/logs/core.log \

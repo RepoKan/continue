@@ -1,5 +1,6 @@
 package com.github.continuedev.continueintellijextension.`continue`.process
 
+import com.intellij.openapi.diagnostic.Logger
 import com.github.continuedev.continueintellijextension.proxy.ProxySettings
 import com.github.continuedev.continueintellijextension.utils.OS
 import com.github.continuedev.continueintellijextension.utils.getContinueBinaryPath
@@ -17,6 +18,7 @@ class ContinueBinaryProcess(
     private val onUnexpectedExit: () -> Unit
 ) : ContinueProcess {
 
+    private val log = Logger.getInstance(ContinueBinaryProcess::class.java)
     private val process = startBinaryProcess()
     override val input: InputStream = process.inputStream
     override val output: OutputStream = process.outputStream
@@ -35,6 +37,7 @@ class ContinueBinaryProcess(
         return builder
             .directory(File(path).parentFile)
             .start()
+            .also { log.debug("Started Continue core process at $path") }
             .apply { onExit().thenRun(onUnexpectedExit).thenRun(::reportErrorTelemetry) }
     }
 
@@ -49,6 +52,15 @@ class ContinueBinaryProcess(
             }
         }
 
+        // Always surface why the core died. If the process crashes at startup there is no
+        // core.log and no message on stdout, so without this the only symptom we get is a
+        // dead stdin stream ("Stream closed") with no explanation anywhere.
+        val exitCode = runCatching { process.exitValue() }.getOrNull()
+        if (err.isNullOrEmpty()) {
+            log.warn("Continue core process exited unexpectedly (exit code $exitCode) with no output on stderr")
+        } else {
+            log.warn("Continue core process exited unexpectedly (exit code $exitCode): $err")
+        }
     }
 
     private companion object {
