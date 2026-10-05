@@ -333,7 +333,11 @@ jobs:
 
   jetbrains-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # This job builds core, gui and the binaries before running the Gradle test and
+    # testIntegration suites. That regularly needs more than 15 minutes on a cold
+    # runner, and hitting the cap killed the job mid-setup, so the integration test
+    # never ran and no failure logs were produced.
+    timeout-minutes: 30
     steps:
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
