@@ -3,7 +3,7 @@ name: cn-check
 description: Install and run the Continue CLI (`cn`) to execute AI agent checks on local code changes. Use when asked to "run checks", "lint with AI", "review my changes with cn", or set up Continue CI locally.
 license: Apache-2.0
 metadata:
-  author: continuedev
+  author: Local Fork
   version: "1.0.0"
 ---
 
