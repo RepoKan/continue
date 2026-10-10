@@ -1,4 +1,7 @@
-# PR #2 Testing Checklist — Strip Hub/Mission Control Code
+# Historical testing checklist — PR #2: Strip Hub/Mission Control Code
+
+> This is a historical artifact from a one-time PR verification pass. It is not the current testing guide.
+> For current testing guidance, see `extensions/cli/spec/testing-strategies.md` and the extension-specific test READMEs.
 
 ## Critical
 

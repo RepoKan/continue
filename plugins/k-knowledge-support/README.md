@@ -4,6 +4,9 @@ Evidence-backed project inspection and engineering support for the
 `RepoKan/continue` fork. The package is a skills-only plugin; it does not run a
 service or add a user interface.
 
+> This plugin/skill set is a fork addition, not part of the upstream `continuedev/continue`
+> documentation/spec snapshot in this repository.
+
 ## Included skills
 
 - `k-knowledge-support` — inspects architecture, diagnoses defects, plans and
