@@ -122,6 +122,7 @@ runs:
       shell: bash
       run: |
         cd extensions/intellij
+        mkdir -p build/reports
         if [ -d "video" ]; then
           mv video build/reports
         else
@@ -133,11 +134,37 @@ runs:
       shell: bash
       run: |
         cd extensions/intellij
-        if [ -d "build/idea-sandbox/system/log/" ]; then
-          mv build/idea-sandbox/system/log/ build/reports
-        else
-          echo "No log directory found to copy"
-        fi
+        mkdir -p build/reports
+        # Sandbox logs live under build/idea-sandbox/IC-<version>/{system,config}/log
+        # depending on the IDE/test framework version; copy whatever exists.
+        for dir in $(find build/idea-sandbox -maxdepth 3 -type d -name log 2>/dev/null); do
+          cp -r "$dir" build/reports/"$(echo $dir | tr '/' '_')"
+        done
+        # Starter-based integration tests (runIdeWithDriver) keep IDE logs under
+        # out/ide-tests/tests/<IC-build>/testExample/log. The Starter writes this at
+        # the *repo root* (the driver reports screenshot paths like
+        # file://$GITHUB_WORKSPACE/out/ide-tests/...), not under extensions/intellij,
+        # so search both.
+        for root in out/ide-tests "$GITHUB_WORKSPACE/out/ide-tests" "$GITHUB_WORKSPACE/../out/ide-tests"; do
+          for dir in $(find "$root" -type d -name log 2>/dev/null || true); do
+            name=$(echo "${dir#$GITHUB_WORKSPACE/}" | tr '/' '_')
+            cp -r "$dir" "build/reports/${name}"
+          done
+        done
+        # Continue core log (it may be written under the test global dir or HOME)
+        for coreLog in src/testIntegration/kotlin/com/github/continuedev/continueintellijextension/test-continue/logs/core.log \
+                       "$HOME/.continue/logs/core.log" \
+                       "$HOME/.continue/index/logs/core.log"; do
+          if [ -f "$coreLog" ]; then
+            mkdir -p build/reports/core-logs
+            cp "$coreLog" build/reports/core-logs/"$(echo $coreLog | md5sum | cut -c1-8)"-core.log
+          fi
+        done
+        # Also capture the IDE starter temp dirs if present
+        find /tmp -maxdepth 2 -type d -iname '*idea*' 2>/dev/null | head -5 | while read -r d; do
+          if [ -d "$d/system/log" ]; then cp -r "$d/system/log" build/reports/tmp_"$(basename $d)"_log; fi
+        done
+        ls -la build/reports || true
 
     - name: Save fails report
       if: ${{ failure() }}
