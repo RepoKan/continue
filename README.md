@@ -14,6 +14,10 @@
   <img src="media/github-readme.png" alt="Banner" />
 </p>
 
+## Snapshot note
+
+> This workspace is a documentation/spec snapshot of the `continuedev/continue` project. It does not contain the implementation source trees for the CLI, VS Code extension, JetBrains plugin, GUI, core package, or supporting packages.
+
 ## What is Continue?
 
 > _Note: The `continuedev/continue` repository is no longer actively maintained and is read-only for all users._
