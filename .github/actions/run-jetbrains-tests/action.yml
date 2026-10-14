@@ -122,6 +122,7 @@ runs:
       shell: bash
       run: |
         cd extensions/intellij
+        mkdir -p build/reports
         if [ -d "video" ]; then
           mv video build/reports
         else
@@ -133,11 +134,19 @@ runs:
       shell: bash
       run: |
         cd extensions/intellij
-        if [ -d "build/idea-sandbox/system/log/" ]; then
-          mv build/idea-sandbox/system/log/ build/reports
-        else
-          echo "No log directory found to copy"
-        fi
+        mkdir -p build/reports
+        # Sandbox logs can live in several locations depending on the IDE/test
+        # framework version; copy whatever exists.
+        for dir in build/idea-sandbox/system/log build/idea-sandbox/log build/testIntegration/idea-sandbox/system/log; do
+          if [ -d "$dir" ]; then
+            cp -r "$dir" build/reports/"$(echo $dir | tr '/' '_')"
+          fi
+        done
+        # Also capture the IDE starter temp dirs if present
+        find /tmp -maxdepth 2 -type d -iname '*idea*' 2>/dev/null | head -5 | while read -r d; do
+          if [ -d "$d/system/log" ]; then cp -r "$d/system/log" build/reports/tmp_"$(basename $d)"_log; fi
+        done
+        ls -la build/reports || true
 
     - name: Save fails report
       if: ${{ failure() }}
