@@ -1,0 +1,36 @@
+name: Project Skill Package Validation
+
+on:
+  pull_request:
+    paths:
+      - ".continue/skills/**"
+      - "plugins/**/skills/**"
+      - "scripts/validate-project-skill-packages.py"
+      - ".github/workflows/project-skill-package-validation.yml"
+  push:
+    branches:
+      - main
+      - "codex/**"
+    paths:
+      - ".continue/skills/**"
+      - "plugins/**/skills/**"
+      - "scripts/validate-project-skill-packages.py"
+      - ".github/workflows/project-skill-package-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-package-mirrors:
+    name: Validate project skill package mirrors
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Validate shared package files and declared metadata
+        run: python3 scripts/validate-project-skill-packages.py
