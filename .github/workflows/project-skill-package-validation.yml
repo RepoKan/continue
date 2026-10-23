@@ -10,7 +10,7 @@ on:
   push:
     branches:
       - main
-      - "codex/**"
+      - "governance/**"
     paths:
       - ".continue/skills/**"
       - "plugins/**/skills/**"
@@ -31,6 +31,11 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Verify exact candidate SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
 
       - name: Validate shared package files and declared metadata
         run: python3 scripts/validate-project-skill-packages.py
