@@ -1,0 +1,45 @@
+name: Governance Rules Validation
+
+on:
+  pull_request:
+    paths:
+      - ".continue/rules/**"
+      - ".continue/agents/**"
+      - ".continue/checks/**"
+      - ".continue/skills/**"
+      - "scripts/validate-governance-rules.py"
+      - ".github/workflows/governance-rules-validation.yml"
+  push:
+    branches:
+      - main
+      - "governance/**"
+    paths:
+      - ".continue/rules/**"
+      - ".continue/agents/**"
+      - ".continue/checks/**"
+      - ".continue/skills/**"
+      - "scripts/validate-governance-rules.py"
+      - ".github/workflows/governance-rules-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-governance:
+    name: Validate Governance Policy Structure and Activation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Verify candidate SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Validate rule IDs, roles, references, and dependency graph
+        run: python3 scripts/validate-governance-rules.py

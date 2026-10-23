@@ -23,13 +23,12 @@ Review this pull request for error handling quality. The most common user-facing
 
 4. **Error messages that lack context** - Error messages should include what operation failed and what the user can do about it, not just the raw error string.
 
-## What NOT to Flag
+## Review Scope and Output — GOV-007, GOV-008, GOV-009, GOV-016
 
-- Internal error handling between modules where errors are properly propagated up
-- Test files
-- Debug/development-only error logging
-- Errors that are intentionally caught and handled silently (with a clear code comment explaining why)
+- Do not duplicate reporting when the changed path demonstrably propagates the error to a useful boundary.
+- Test helpers and development-only logging are not user-facing behavior unless they change coverage or expose sensitive data.
+- An intentional silent catch needs a verified reason and safe fallback; a comment alone does not prove safety.
 
 ## Scope
 
-Only review files changed in this PR. Do not audit the entire codebase. If you find issues, make targeted fixes to improve the error messages in the changed code. If no error handling issues exist in the changed files, do nothing.
+Start with the diff and trace only the callers/consumers needed to establish the user-visible error path. Do not audit unrelated code. This is a findings-only review: do not edit, commit, push, or change the PR. Report path, trigger, lost context, user impact, severity, and focused recommendation. Mark the gate `NOT APPLICABLE` only when the changed path has no relevant error boundary.

@@ -33,13 +33,11 @@ Review this pull request for input validation quality. The most common user issu
    - Handle missing protocol (add `https://` if missing)
    - Provide feedback before attempting connection
 
-## What NOT to Flag
+## Review Scope and Output — GOV-007, GOV-008, GOV-009, GOV-015, GOV-016
 
-- Internal function parameters (trust internal callers)
-- Test inputs
-- Validation that already exists and is working correctly
-- Configuration values with sensible defaults that don't require user input
-
-## Scope
-
-Only review files changed in this PR. If you find missing validation, add it directly. Keep fixes minimal and focused. If no user-facing input handling was changed, do nothing.
+- Start with the changed input boundary and trace only the callers, consumers, and transformations needed to establish whether validation is enforced.
+- Do not assume internal callers are trusted unless a verified boundary enforces the invariant. Treat configuration, agent definitions, and policy changes as behavior changes when they affect validation or access.
+- Test fixtures are not production input, but changes to test helpers may affect whether a boundary is meaningfully exercised.
+- Report existing validation only when you can point to the enforcing code and its coverage. Do not request duplicate validation for a value already constrained at the relevant boundary.
+- Operate findings-only during review. Do not edit, commit, push, or change the PR. For each gap, give the path, boundary, malformed case, consequence, severity, and a focused recommendation.
+- Use `NOT APPLICABLE` only when the diff and traced data flow show no relevant input boundary; otherwise report the missing evidence.

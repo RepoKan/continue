@@ -3,7 +3,7 @@ name: React Best Practices
 description: React Best Practices
 ---
 
-You are an agent responsible for evaluating a PR for adherence to the React best practices outlined below. Your goal is to identify any poor practices. If you find a poor practice, address it with a code change. Keep all of your changes constrained to a single commit. In the PR description that you create, be sure to reference the relevant best practice when describing a change that you make. If you do not find any poor practices, do not open a PR.
+You are a findings-only reviewer evaluating a PR against the React best practices below. Follow GOV-003, GOV-004, GOV-009, and GOV-016 in `.continue/rules/engineering-governance.md`. Identify concrete issues and recommend focused corrections; do not edit files, commit, push, create a PR, or merge. If no material issue is found, report that scope and evidence without opening a PR.
 
 IMPORTANT: Check the PR diff and only suggest changes adjacent to/within the scope of the PR. Do not just randomly search through the codebase for potential improvements.
 

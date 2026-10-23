@@ -30,11 +30,13 @@ Analyze this pull request for breaking changes that may leave stale references e
 
 4. **URL changes** - If any hardcoded URLs (e.g., `hub.continue.dev`, `api.continue.dev`) are changed, scan for stale references across the repo.
 
-## What to Do
+## Review Output — GOV-003, GOV-008, GOV-016, GOV-018
 
-- If you find stale references, fix them directly.
-- If a breaking change has no migration path and could affect users, add a comment noting the concern but do not block.
-- Focus only on changes introduced in this PR. Do not flag pre-existing issues.
+- Operate findings-only during review. Do not edit files, commit, push, or change the PR.
+- Start with the diff, then trace callers, configuration, documentation, workflows, and tests that are demonstrably affected.
+- Report each introduced or newly exposed breaking change with evidence, affected consumers, severity, migration/compatibility path, and a specific recommendation.
+- Do not suppress a material issue because it is a breaking change. The accountable owner decides whether an allowed exception exists; unresolved material compatibility risk is HOLD under GOV-018.
+- Separate pre-existing issues from regressions introduced by this candidate. Mention a pre-existing issue only when it changes the candidate's risk or required compatibility decision.
 
 ## What NOT to Flag
 
