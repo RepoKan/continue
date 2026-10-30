@@ -13,6 +13,7 @@ const sensitivePrefixes = [
   "extensions/",
 ];
 
+/** Accepts canonical, ordinary documentation or image paths; sensitive and unknown paths fail closed. */
 function ordinaryPath(path: string): boolean {
   if (typeof path !== "string" || path.trim() !== path || !path) return false;
   // Require canonical repository-relative paths; never hide sensitive components.
@@ -83,12 +84,12 @@ export default defineConfig((ctx) => {
         {
           path: "extensions/intellij/**",
           instructions:
-            "Preserve Java/javac 24.0.2 runtime, separate JVM17 compiler and Gradle wrapper8.14.3. Require current fresh XML test counts; cached/up-to-date tasks are not executed tests.",
+            "Preserve Java/javac 24.0.2 runtime, separate JVM 17 compiler and Gradle wrapper 8.14.3. Require current fresh XML test counts; cached/up-to-date tasks are not executed tests.",
         },
         {
           path: "extensions/cli/**",
           instructions:
-            "Validate the intentional pinned Node24 migration against actual current CLI typecheck, syntax, focused and full tests. Preserve local profiles, MCP/tools and reload/integration contracts.",
+            "Validate CLI changes with the current pinned Node runtime, CLI typecheck, built-entry syntax checks, and focused and full tests as appropriate to the change. Preserve local profiles, MCP/tools and reload/integration contracts.",
         },
         {
           path: ".github/**",
@@ -98,7 +99,7 @@ export default defineConfig((ctx) => {
         {
           path: "**/package-lock.json",
           instructions:
-            "Use deterministic npm ci. Keep dependency and lock changes limited to the explicitly authorized CodeRabbit SDK and Node24 migration; preserve integrity hashes and reject unrelated upgrades.",
+            "Use deterministic npm ci. Keep dependency and lock changes scoped to the current PR's intended purpose; preserve integrity hashes and reject unrelated dependency or lockfile churn.",
         },
       ],
     },

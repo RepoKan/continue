@@ -18,7 +18,7 @@ disabled, reviews use `en-US`, and poems are disabled.
 The configuration performs no network or environment access and uses no remote
 includes. It preserves local-first profiles, MCP/tools, configuration reload and
 the VS Code, CLI and IntelliJ contracts. It adds no authentication, telemetry or
-remote synchronization. IntelliJ retains runtime Java `24.0.2`, compiler JVM17
+remote synchronization. IntelliJ retains runtime Java `24.0.2`, compiler JVM 17
 and Gradle wrapper `8.14.3`.
 
 ## Validate
