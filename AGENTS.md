@@ -29,7 +29,7 @@ For material analysis and root-cause work, apply
   on `main`.
 - Do not commit, push, merge, publish, delete a branch, rerun CI, or change
   repository permissions without authorization for that action.
-- Keep the Node.js baseline at `20.20.1` unless an intentional, tested
+- Keep the Node.js baseline at `24.22.2` unless an intentional, tested
   migration changes it.
 - Preserve local profiles and configuration, MCP and agent tools, config
   reload, and the VS Code, CLI, and IntelliJ integration contracts.
