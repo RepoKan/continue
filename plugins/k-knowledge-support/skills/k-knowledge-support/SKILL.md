@@ -64,7 +64,7 @@ Unless the user explicitly changes these requirements, preserve the local-first 
 - no PostHog or Sentry network traffic is introduced;
 - model configuration, MCP servers, agent tools, and config reload continue to work;
 - existing VS Code, CLI, and IntelliJ integration contracts remain compatible;
-- the repository's Node baseline remains `20.20.1`.
+- the repository's Node baseline remains `24.22.2`.
 
 Do not add authentication, telemetry, remote synchronization, a dependency upgrade, a lockfile rewrite, packaging, publishing, or release changes as incidental work.
 

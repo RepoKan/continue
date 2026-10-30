@@ -4,7 +4,7 @@ Run commands from the owning package. Reuse installed dependencies when present;
 
 ## Baseline
 
-- Node: `20.20.1` from `.node-version` and `.nvmrc`
+- Node: `24.22.2` from `.node-version` and `.nvmrc`
 - TypeScript modules: use the script declared by that module's `package.json`
 - Tests: prefer focused Vitest coverage for new work where the existing area permits it
 - Existing Jest tests remain Jest unless the requested change includes migration
@@ -24,7 +24,7 @@ Run commands from the owning package. Reuse installed dependencies when present;
 | `packages/terminal-security/`  | `cd packages/terminal-security && npm test -- path/to/file.test.ts` | `cd packages/terminal-security && npm run build`                     |
 | `binary/`                      | `cd binary && npm test`                                             | `cd binary && npm run rebuild` only when packaging logic is affected |
 | `sync/`                        | `cargo test --manifest-path sync/Cargo.toml`                        | `cargo check --manifest-path sync/Cargo.toml`                        |
-| `extensions/intellij/`         | `cd extensions/intellij && ./gradlew test`                          | Use JDK 17, as set by the Gradle JVM toolchain                       |
+| `extensions/intellij/`         | `cd extensions/intellij && ./gradlew test`                          | Runtime JDK 24.0.2; compiler JVM17; Gradle wrapper 8.14.3            |
 
 Confirm the script still exists before running a command because package scripts can drift.
 

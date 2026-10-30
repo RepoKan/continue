@@ -1,0 +1,49 @@
+name: CodeRabbit configuration
+
+on:
+  pull_request:
+    paths:
+      - ".coderabbit*"
+      - "coderabbit.y*ml"
+      - "tsconfig.coderabbit.json"
+      - "scripts/coderabbit-config.test.mts"
+      - "package*.json"
+      - ".nvmrc"
+      - ".node-version"
+      - ".github/workflows/coderabbit-config.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".coderabbit*"
+      - "coderabbit.y*ml"
+      - "tsconfig.coderabbit.json"
+      - "scripts/coderabbit-config.test.mts"
+      - "package*.json"
+      - ".nvmrc"
+      - ".node-version"
+      - ".github/workflows/coderabbit-config.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      PUPPETEER_SKIP_DOWNLOAD: "true"
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          persist-credentials: false
+      - name: Verify exact head
+        run: test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck:coderabbit
+      - run: npm run test:coderabbit
