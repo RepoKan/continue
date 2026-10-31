@@ -17,28 +17,28 @@ The versions below are not a blanket upgrade mandate. They summarize the latest 
 
 ## Capability and routing register
 
-| Capability | Primary route | Use when | Boundary |
-|---|---|---|---|
-| Project inspection and safe change | `k-knowledge-support` | Architecture tracing, diagnosis, implementation, testing, and reusable knowledge capture in `RepoKan/continue` | Current source and tests outrank derived notes |
-| Android/Compose/APK readiness | Android Compose APK Reviewer | Kotlin/Compose or mixed Java projects, Gradle failures, APK readiness, Sunmi integration, and configuration review | Never claim APK readiness without a produced APK |
-| Payment and Production analysis | `ktc-payment-inspector` plus the payment-production gate | SUNMI P3, EMV/CTLS, ISO8583, TLE, reversal, settlement, host, and transaction-location behavior | Missing exact source/spec/runtime evidence means `HOLD - IMPACT NOT PROVEN` |
-| System-specialist output | Banking Payment System Specialist V3 Enterprise | RCA, business/technical impact, developer tasks, validation, rollback, and prevention | Separate confirmed cause from ranked hypotheses |
-| MCP support | PAYMENT EDC Global MCP | Project-local payment/POS/EDC assistant integration | Transport/configuration is not factual authority |
-| Local AI | Project-local AMD/Lemonade profile where available | Bounded local coding and retrieval tasks | Verify live model catalog; do not silently substitute models |
-| Connected knowledge | Notion, GitHub, and ChatGPT Library connectors | Search, preserve, and synchronize governed records | Connector access does not expand permissions or source authority |
+| Capability                         | Primary route                                            | Use when                                                                                                           | Boundary                                                                    |
+| ---------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Project inspection and safe change | `k-knowledge-support`                                    | Architecture tracing, diagnosis, implementation, testing, and reusable knowledge capture in `RepoKan/continue`     | Current source and tests outrank derived notes                              |
+| Android/Compose/APK readiness      | Android Compose APK Reviewer                             | Kotlin/Compose or mixed Java projects, Gradle failures, APK readiness, Sunmi integration, and configuration review | Never claim APK readiness without a produced APK                            |
+| Payment and Production analysis    | `ktc-payment-inspector` plus the payment-production gate | SUNMI P3, EMV/CTLS, ISO8583, TLE, reversal, settlement, host, and transaction-location behavior                    | Missing exact source/spec/runtime evidence means `HOLD - IMPACT NOT PROVEN` |
+| System-specialist output           | Banking Payment System Specialist V3 Enterprise          | RCA, business/technical impact, developer tasks, validation, rollback, and prevention                              | Separate confirmed cause from ranked hypotheses                             |
+| MCP support                        | PAYMENT EDC Global MCP                                   | Project-local payment/POS/EDC assistant integration                                                                | Transport/configuration is not factual authority                            |
+| Local AI                           | Project-local AMD/Lemonade profile where available       | Bounded local coding and retrieval tasks                                                                           | Verify live model catalog; do not silently substitute models                |
+| Connected knowledge                | Notion, GitHub, and ChatGPT Library connectors           | Search, preserve, and synchronize governed records                                                                 | Connector access does not expand permissions or source authority            |
 
 ## Android and Compose Multiplatform toolchain gates
 
-| Area | Recorded compatibility conclusion | Required action before adoption |
-|---|---|---|
-| Kotlin | Kotlin 2.4.20 was the stable controlled-migration candidate in the 2026-09-14 review. Kotlin 2.2.20–2.2.21 remained capped at AGP 8.11.1 and Gradle 8.14. | Verify the current official Kotlin compatibility matrix and align Kotlin compiler, Compose compiler plugin, and serialization compiler plugin. |
-| KSP | KSP 2.3.12 requires AGP 8.12.0 or newer. It has no supported overlap with the Kotlin 2.2.x/AGP 8.11.1 ceiling recorded above. | Upgrade Kotlin, AGP, Gradle, and KSP as one tested set; never move KSP independently. |
-| AGP and Gradle | The controlled candidate window was AGP 8.12–9.3.1 with Kotlin 2.4.20 and Gradle no newer than 9.7.0. AGP 9.4 was preview-only. | Use the selected AGP release's required Gradle version and verify the current matrices before editing the wrapper. |
-| JDK | JDK 21 is the project-safe Gradle/CI baseline recorded in the reviews. | Pin the CI and IDE Gradle JVM. Test newer JDKs in a separate lane only after Gradle and AGP support them. |
-| Compose Multiplatform | Keep the production line on a stable Compose release. The 1.13 alpha line was preview-only and carried future minSdk 24 and removed-API implications. | Do not adopt a preview solely for freshness; use it only for a reproduced issue and isolate the validation. |
-| Room KMP | Room 2.8.5 makes suspend queries and invalidation operations fail explicitly after `RoomDatabase.close()`. | Cancel database-owned collectors/work before close; regenerate and diff schemas after KSP or Room changes. |
-| Android-KMP plugin | Legacy KMP use of `com.android.library` relies on APIs expected to disappear in AGP 10. A KMP module using `com.android.application` requires an Android application module split. | Prepare `androidApp` plus shared KMP library boundaries before AGP 10; treat temporary DSL opt-outs only as migration aids. |
-| Permissions | `moko-permissions` 0.20.1 was the last recorded stable release and included an Android activity-leak fix. | Validate grant, denial, permanent denial, settings return, lifecycle recreation, and iOS restricted states. |
+| Area                  | Recorded compatibility conclusion                                                                                                                                                  | Required action before adoption                                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kotlin                | Kotlin 2.4.20 was the stable controlled-migration candidate in the 2026-09-14 review. Kotlin 2.2.20–2.2.21 remained capped at AGP 8.11.1 and Gradle 8.14.                          | Verify the current official Kotlin compatibility matrix and align Kotlin compiler, Compose compiler plugin, and serialization compiler plugin. |
+| KSP                   | KSP 2.3.12 requires AGP 8.12.0 or newer. It has no supported overlap with the Kotlin 2.2.x/AGP 8.11.1 ceiling recorded above.                                                      | Upgrade Kotlin, AGP, Gradle, and KSP as one tested set; never move KSP independently.                                                          |
+| AGP and Gradle        | The controlled candidate window was AGP 8.12–9.3.1 with Kotlin 2.4.20 and Gradle no newer than 9.7.0. AGP 9.4 was preview-only.                                                    | Use the selected AGP release's required Gradle version and verify the current matrices before editing the wrapper.                             |
+| JDK                   | JDK 21 is the project-safe Gradle/CI baseline recorded in the reviews.                                                                                                             | Pin the CI and IDE Gradle JVM. Test newer JDKs in a separate lane only after Gradle and AGP support them.                                      |
+| Compose Multiplatform | Keep the production line on a stable Compose release. The 1.13 alpha line was preview-only and carried future minSdk 24 and removed-API implications.                              | Do not adopt a preview solely for freshness; use it only for a reproduced issue and isolate the validation.                                    |
+| Room KMP              | Room 2.8.5 makes suspend queries and invalidation operations fail explicitly after `RoomDatabase.close()`.                                                                         | Cancel database-owned collectors/work before close; regenerate and diff schemas after KSP or Room changes.                                     |
+| Android-KMP plugin    | Legacy KMP use of `com.android.library` relies on APIs expected to disappear in AGP 10. A KMP module using `com.android.application` requires an Android application module split. | Prepare `androidApp` plus shared KMP library boundaries before AGP 10; treat temporary DSL opt-outs only as migration aids.                    |
+| Permissions           | `moko-permissions` 0.20.1 was the last recorded stable release and included an Android activity-leak fix.                                                                          | Validate grant, denial, permanent denial, settings return, lifecycle recreation, and iOS restricted states.                                    |
 
 ## Architecture and engineering expectations
 
@@ -63,14 +63,14 @@ The versions below are not a blanket upgrade mandate. They summarize the latest 
 
 ## Focused regression matrix
 
-| Surface | Minimum evidence |
-|---|---|
-| Build and CI | Clean Android assemble; warm rebuild; configuration/build cache; KSP regeneration; iOS simulator link; `iosArm64` release link; pinned Gradle JVM |
-| Android device | Install and upgrade; minimum supported API; lifecycle recreation; Room queries/transactions; resources; minified APK/AAB smoke test |
-| iOS simulator and device | Fresh database and migrations; DAO `Flow`; background/foreground; text input; accessibility; navigation; resources; release XCFramework; CocoaPods or SwiftPM integration |
-| Compose UI | Cross-module composables; default parameters; state restoration; focus; dialogs/popups; navigation transitions; Android accessibility and iOS VoiceOver/Dynamic Type |
-| Permissions | Grant; deny; permanent deny; restricted state; settings return; process recreation; foreground/background transitions |
-| Payment/POS | SDK binding; approved/declined paths; timeout and uncertain outcome; duplicate prevention; reversal/advice; settlement continuity; printer/slip output; sensitive-log redaction |
+| Surface                  | Minimum evidence                                                                                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build and CI             | Clean Android assemble; warm rebuild; configuration/build cache; KSP regeneration; iOS simulator link; `iosArm64` release link; pinned Gradle JVM                               |
+| Android device           | Install and upgrade; minimum supported API; lifecycle recreation; Room queries/transactions; resources; minified APK/AAB smoke test                                             |
+| iOS simulator and device | Fresh database and migrations; DAO `Flow`; background/foreground; text input; accessibility; navigation; resources; release XCFramework; CocoaPods or SwiftPM integration       |
+| Compose UI               | Cross-module composables; default parameters; state restoration; focus; dialogs/popups; navigation transitions; Android accessibility and iOS VoiceOver/Dynamic Type            |
+| Permissions              | Grant; deny; permanent deny; restricted state; settings return; process recreation; foreground/background transitions                                                           |
+| Payment/POS              | SDK binding; approved/declined paths; timeout and uncertain outcome; duplicate prevention; reversal/advice; settlement continuity; printer/slip output; sensitive-log redaction |
 
 ## Weekly review specification
 

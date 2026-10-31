@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4 - 2026-10-01
+
+- Bundle the K Knowledge Supporting entry gate, Android POS/EDC assistant, KTC payment inspector, and K Knowledge agent hub.
+- Mirror every project-owned skill into both `.continue/skills` and `.claude/skills`, with packaged copies under the K Knowledge Support plugin.
+- Add Android project inspection, Gradle build helper, payment review validation, and domain-specific payment references.
+- Extend CI validation so every project-owned skill must have a matching packaged plugin copy and OpenAI agent metadata.
+- Preserve the Node 20.20.1 baseline and existing dependency lockfiles.
+
 ## 0.1.3 - 2026-09-11
 
 - Add CI failure classification for formatting, workflow/artifact contracts, dependency/setup failures, and actual application/test failures.

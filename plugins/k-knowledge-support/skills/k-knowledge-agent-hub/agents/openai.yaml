@@ -1,0 +1,13 @@
+interface:
+  display_name: K Knowledge Agent Hub
+  short_description: Route KTC/SUNMI/Android payment work through project-local downloaded
+    agents and production-first rules.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
