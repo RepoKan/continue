@@ -41,6 +41,20 @@ test("complete ordinary CLI metadata permits chill without approvals", async () 
   assert.equal(result.reviews?.poem, false);
   assert.equal(result.language, "en-US");
 });
+test("KKS review automation includes draft PRs and limits incremental repeats", async () => {
+  const result = await config(context());
+  assert.deepEqual(result.reviews?.auto_review, {
+    enabled: true,
+    drafts: true,
+    base_branches: [],
+    auto_incremental_review: true,
+    auto_pause_after_reviewed_commits: 2,
+  });
+  assert.equal(result.reviews?.request_changes_workflow, false);
+  assert.equal(result.reviews?.high_level_summary, true);
+  assert.equal(result.reviews?.review_status, true);
+});
+
 test("hosted and unknown invocations remain assertive", async () => {
   for (const source of ["review", "unknown", undefined]) {
     const ctx = context();
