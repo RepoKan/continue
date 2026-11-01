@@ -224,18 +224,17 @@ export class ToolPermissionService
     const modePolicies = this.generateModePolicies();
 
     let allPolicies: ToolPermissionPolicy[];
-    if (agentFileServiceState?.agentFile) {
-      // Agent file policies take full precedence on init
+    if (
+      this.currentState.currentMode === "plan" ||
+      this.currentState.currentMode === "auto"
+    ) {
+      // Explicit modes cannot be bypassed by an agent file.
+      allPolicies = [...modePolicies];
+    } else if (agentFileServiceState?.agentFile) {
       allPolicies = this.generateAgentFilePolicies(
         agentFileServiceState,
         mcpServiceState,
       );
-    } else if (
-      this.currentState.currentMode === "plan" ||
-      this.currentState.currentMode === "auto"
-    ) {
-      // For plan and auto modes, use ONLY mode policies (absolute override)
-      allPolicies = [...modePolicies];
     } else {
       // Normal mode: combine headless + mode policies with user configuration
       const compiledPolicies = resolvePermissionPrecedence({

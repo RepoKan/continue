@@ -87,6 +87,27 @@ describe("ToolPermissionService - Mode Functionality", () => {
     });
   });
 
+  it("initializeSync preserves plan restrictions when an agent file declares Bash", () => {
+    const agentFileState = {
+      agentFile: { name: "synthetic-agent" },
+      parsedTools: {
+        tools: [{ toolName: "Bash" }],
+        mcpServers: [],
+        allBuiltIn: false,
+      },
+    };
+    const state = service.initializeSync(
+      { mode: "plan" },
+      agentFileState as Parameters<ToolPermissionService["initializeSync"]>[1],
+    );
+    expect(
+      state.permissions.policies.find((policy) => policy.tool === "Bash"),
+    ).toEqual({ tool: "Bash", permission: "exclude" });
+    expect(
+      state.permissions.policies.find((policy) => policy.tool === "*"),
+    ).toEqual({ tool: "*", permission: "exclude" });
+  });
+
   describe("mode switching", () => {
     beforeEach(() => {
       service.initializeSync();
