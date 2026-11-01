@@ -1,6 +1,7 @@
 import {
   AUTO_MODE_POLICIES,
   PLAN_MODE_POLICIES,
+  getDefaultToolPolicies,
 } from "src/permissions/defaultPolicies.js";
 
 import { ensurePermissionsYamlExists } from "../permissions/permissionsYamlLoader.js";
@@ -78,15 +79,15 @@ export class ToolPermissionService
     agentFileServiceState?: AgentFileServiceState,
     mcpServiceState?: MCPServiceState,
   ): ToolPermissionPolicy[] {
-    // With --agent, all available tools are allowed if not specified
+    // Agent files lacking explicit tool permissions cannot escalate privileges.
     const parsedTools = agentFileServiceState?.parsedTools;
-    if (!parsedTools) {
-      return [
-        {
-          tool: "*",
-          permission: "allow",
-        },
-      ];
+    if (
+      !parsedTools ||
+      (!parsedTools.tools.length &&
+        !parsedTools.mcpServers.length &&
+        !parsedTools.allBuiltIn)
+    ) {
+      return getDefaultToolPolicies(this.currentState.isHeadless);
     }
 
     const policies: ToolPermissionPolicy[] = [];
@@ -131,6 +132,14 @@ export class ToolPermissionService
           permission: "exclude",
         }));
         policies.push(...disallowed);
+      } else {
+        // Only tools advertised by this explicitly selected MCP server.
+        policies.push(
+          ...server.tools.map((t) => ({
+            tool: t.name,
+            permission: "allow" as const,
+          })),
+        );
       }
     }
 
@@ -157,10 +166,19 @@ export class ToolPermissionService
       policies.push(...disallowed);
     }
 
-    // Allow all other tools
+    if (parsedTools.allBuiltIn && !specificBuiltIns.length) {
+      policies.push(
+        ...BUILT_IN_TOOL_NAMES.map((tool) => ({
+          tool,
+          permission: "allow" as const,
+        })),
+      );
+    }
+
+    // Any tool not expressly selected still needs approval.
     policies.push({
       tool: "*",
-      permission: "allow",
+      permission: "ask",
     });
 
     return policies;
