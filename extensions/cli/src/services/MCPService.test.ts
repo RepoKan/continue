@@ -218,11 +218,10 @@ describe("MCPService", () => {
       ).resolves.not.toThrow();
     });
 
-    it("should create HttpsAgent when verifySsl is false for SSE transport", async () => {
+    it("rejects insecure TLS settings for sseAssistant", async () => {
       const { SSEClientTransport } = await import(
         "@modelcontextprotocol/sdk/client/sse.js"
       );
-      const { Agent: HttpsAgent } = await import("https");
 
       const sseAssistant: AssistantConfig = {
         name: "sse-assistant",
@@ -239,22 +238,10 @@ describe("MCPService", () => {
         ],
       } as AssistantConfig;
 
-      await mcpService.initialize(sseAssistant);
-
-      expect(SSEClientTransport).toHaveBeenCalledWith(
-        expect.any(URL),
-        expect.objectContaining({
-          eventSourceInit: expect.objectContaining({
-            fetch: expect.any(Function),
-          }),
-          requestInit: expect.objectContaining({
-            agent: expect.any(Object),
-          }),
-        }),
+      await expect(mcpService.doInitialize(sseAssistant, false, true)).rejects.toThrow(
+        "MCP TLS certificate verification cannot be disabled",
       );
-      expect(HttpsAgent).toHaveBeenCalledWith({
-        rejectUnauthorized: false,
-      });
+      expect(SSEClientTransport).not.toHaveBeenCalled();
     });
 
     it("should not create HttpsAgent when verifySsl is true for SSE transport", async () => {
@@ -302,11 +289,10 @@ describe("MCPService", () => {
       expect(HttpsAgent).not.toHaveBeenCalled();
     });
 
-    it("should create HttpsAgent when verifySsl is false for streamable-http transport", async () => {
+    it("rejects insecure TLS settings for httpAssistant", async () => {
       const { StreamableHTTPClientTransport } = await import(
         "@modelcontextprotocol/sdk/client/streamableHttp.js"
       );
-      const { Agent: HttpsAgent } = await import("https");
 
       const httpAssistant: AssistantConfig = {
         name: "http-assistant",
@@ -323,19 +309,10 @@ describe("MCPService", () => {
         ],
       } as AssistantConfig;
 
-      await mcpService.initialize(httpAssistant);
-
-      expect(StreamableHTTPClientTransport).toHaveBeenCalledWith(
-        expect.any(URL),
-        expect.objectContaining({
-          requestInit: expect.objectContaining({
-            agent: expect.any(Object),
-          }),
-        }),
+      await expect(mcpService.doInitialize(httpAssistant, false, true)).rejects.toThrow(
+        "MCP TLS certificate verification cannot be disabled",
       );
-      expect(HttpsAgent).toHaveBeenCalledWith({
-        rejectUnauthorized: false,
-      });
+      expect(StreamableHTTPClientTransport).not.toHaveBeenCalled();
     });
 
     it("should not create HttpsAgent when verifySsl is true for streamable-http transport", async () => {

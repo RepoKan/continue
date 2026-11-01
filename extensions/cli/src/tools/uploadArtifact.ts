@@ -35,7 +35,7 @@ export const uploadArtifactTool: Tool = {
       },
     },
   },
-  readonly: true,
+  readonly: false,
   isBuiltIn: true,
   run: async (args: { filePath: string }): Promise<string> => {
     try {
