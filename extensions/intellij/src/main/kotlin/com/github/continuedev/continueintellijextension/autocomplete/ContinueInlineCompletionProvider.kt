@@ -15,17 +15,17 @@ import com.intellij.codeInsight.inline.completion.elements.InlineCompletionGrayT
 import com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSingleSuggestion
 import com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionSuggestion
 import com.intellij.codeInsight.inline.completion.suggestion.InlineCompletionVariant
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
-import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.withContext
 
 class ContinueInlineCompletionProvider : InlineCompletionProvider {
     override val id get() = InlineCompletionProviderID("Continue")
     override val insertHandler: InlineCompletionInsertHandler = NotifyingHandler()
-    private var lastUuid: String? = null
-    private var lastProject: Project? = null
-    private var isUsingNextEdit = false
 
     override fun isEnabled(event: InlineCompletionEvent): Boolean {
         val isSettingEnabled = ContinueExtensionSettings.instance.continueState.enableTabAutocomplete
@@ -39,13 +39,12 @@ class ContinueInlineCompletionProvider : InlineCompletionProvider {
         val editor = request.editor
         val project = editor.project
             ?: return InlineCompletionSuggestion.Empty
-        lastUuid = uuid()
-        lastProject = project
+        val requestUuid = uuid()
+        request.putUserData(AUTOCOMPLETE_UUID_KEY, requestUuid)
 
         val isNextEditSupported = project.service<NextEditStatusService>().isNextEditEnabled()
 
         if (isNextEditSupported) {
-            isUsingNextEdit = true
             val nextEditService = project.service<NextEditService>()
             val nextEditJumpManager = project.service<NextEditJumpManager>()
 
@@ -66,7 +65,7 @@ class ContinueInlineCompletionProvider : InlineCompletionProvider {
                     request,
                     editor,
                     currCursorPos,
-                    lastUuid
+                    requestUuid
                 ) // Case 1: Typing (chain does not exist).
             }
 
@@ -106,23 +105,25 @@ class ContinueInlineCompletionProvider : InlineCompletionProvider {
                 is FimResult.NotFimEdit -> {
                     // For non-FIM operations, show custom UI and return empty
                     val nextEditWindowManager = project.service<NextEditWindowManager>()
-                    nextEditWindowManager.showNextEditWindow(
-                        editor,
-                        Position(currCursorPos.first, currCursorPos.second),
-                        editableRegionStartLine,
-                        editableRegionEndLine,
-                        oldEditRangeSlice,
-                        nextEditOutcome.completion,
-                        nextEditOutcome.diffLines,
-                        lastUuid
-                    )
+                    withContext(Dispatchers.EDT) {
+                        nextEditWindowManager.showNextEditWindow(
+                            editor,
+                            Position(currCursorPos.first, currCursorPos.second),
+                            editableRegionStartLine,
+                            editableRegionEndLine,
+                            oldEditRangeSlice,
+                            nextEditOutcome.completion,
+                            nextEditOutcome.diffLines,
+                            requestUuid
+                        )
+                    }
                     return InlineCompletionSuggestion.Empty
                 }
             }
         } else {
             // Use traditional autocomplete
             val variant = project.service<CompletionService>().getAutocomplete(
-                lastUuid!!,
+                requestUuid,
                 editor.virtualFile.url,
                 editor.caretModel.primaryCaret.logicalPosition.line,
                 editor.caretModel.primaryCaret.logicalPosition.column
@@ -140,7 +141,13 @@ class ContinueInlineCompletionProvider : InlineCompletionProvider {
             elements: List<InlineCompletionElement>
         ) {
             super.afterInsertion(environment, elements)
-            lastProject?.service<CompletionService>()?.acceptAutocomplete(lastUuid)
+            val request = environment.request ?: return
+            val requestUuid = request.getUserData(AUTOCOMPLETE_UUID_KEY) ?: return
+            environment.editor.project?.service<CompletionService>()?.acceptAutocomplete(requestUuid)
         }
+    }
+
+    companion object {
+        private val AUTOCOMPLETE_UUID_KEY = Key.create<String>("continue.inline.completion.uuid")
     }
 }
