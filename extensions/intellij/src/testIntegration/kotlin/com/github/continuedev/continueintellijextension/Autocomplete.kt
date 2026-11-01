@@ -2,8 +2,8 @@ package com.github.continuedev.continueintellijextension
 
 import com.automation.remarks.junit5.Video
 import com.intellij.driver.sdk.ui.components.*
-import com.intellij.driver.sdk.ui.components.elements.waitForNoOpenedDialogs
 import com.intellij.driver.sdk.wait
+import com.intellij.driver.sdk.waitFor
 import com.intellij.driver.sdk.waitForIndicators
 import com.intellij.ide.starter.driver.engine.runIdeWithDriver
 import com.intellij.ide.starter.ide.IdeProductProvider
@@ -12,8 +12,6 @@ import com.intellij.ide.starter.plugins.PluginConfigurator
 import com.intellij.ide.starter.project.NoProject
 import com.intellij.ide.starter.runner.Starter
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.assertTrue
-import java.awt.event.KeyEvent
 import java.io.File
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -37,18 +35,10 @@ class Autocomplete {
             waitForIndicators(5.minutes)
 
             ideFrame {
-                waitForNoOpenedDialogs()
-
                 editorTabs {
                     clickTab("Main.java")
                 }
                 codeEditor {
-                    // Clear any existing text using the IntelliJ Driver keyboard API.
-                    keyboard {
-                        hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_A)
-                        backspace()
-                    }
-
                     // Type trigger text
                     keyboard {
                         enterText("TEST_USER_MESSAGE_0")
@@ -61,14 +51,10 @@ class Autocomplete {
                         tab()
                     }
 
-                    // Wait for autocomplete response
-                    wait(5.seconds)
-
-                    val editorText = text
-                    assertTrue(
-                        editorText.contains("TEST_LLM_RESPONSE_0"),
-                        "Expected autocomplete response not found. Editor contains: $editorText"
-                    )
+                    // Poll for the asynchronous completion instead of relying on a fixed delay.
+                    waitFor("autocomplete response", 30.seconds) {
+                        text.contains("TEST_LLM_RESPONSE_0")
+                    }
                 }
             }
         }
