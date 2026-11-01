@@ -28,11 +28,15 @@ test("getPersistedModelName isolates synthetic project workspaces", () => {
   const publicWorkspace = path.join(isolatedHome, "public-project");
 
   persistModelName("private-provider-model", privateWorkspace);
-  expect(getPersistedModelName(privateWorkspace)).toBe("private-provider-model");
+  expect(getPersistedModelName(privateWorkspace)).toBe(
+    "private-provider-model",
+  );
   expect(getPersistedModelName(publicWorkspace)).toBeNull();
 
   persistModelName("public-provider-model", publicWorkspace);
-  expect(getPersistedModelName(publicWorkspace)).toBe("public-provider-model");
+  expect(getPersistedModelName(publicWorkspace)).toBe(
+    "public-provider-model",
+  );
   expect(getPersistedModelName(privateWorkspace)).toBe("private-provider-model");
 
   persistModelName(null, publicWorkspace);

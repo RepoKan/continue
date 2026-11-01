@@ -3,9 +3,24 @@
  * or connect to remote endpoints with disabled TLS verification.
  */
 const INHERITED_PROCESS_ENV_KEYS = [
-  "PATH", "HOME", "SHELL", "TMPDIR", "TMP", "TEMP", "LANG",
-  "LC_ALL", "LC_CTYPE", "USERPROFILE", "APPDATA", "LOCALAPPDATA",
-  "PATHEXT", "SYSTEMROOT", "SystemRoot", "COMSPEC", "ComSpec", "WINDIR",
+  "PATH",
+  "HOME",
+  "SHELL",
+  "TMPDIR",
+  "TMP",
+  "TEMP",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+  "USERPROFILE",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "PATHEXT",
+  "SYSTEMROOT",
+  "SystemRoot",
+  "COMSPEC",
+  "ComSpec",
+  "WINDIR",
 ] as const;
 
 export function buildStdioMcpEnvironment(

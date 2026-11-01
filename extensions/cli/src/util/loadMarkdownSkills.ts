@@ -88,7 +88,6 @@ async function getSkillFilesFromDir(dirPath: string): Promise<string[]> {
 export async function loadMarkdownSkills(): Promise<LoadSkillsResult> {
   const errors: { fatal: boolean; message: string }[] = [];
   const skills: Skill[] = [];
-
   const cwd = process.cwd();
 
   try {
@@ -98,23 +97,20 @@ export async function loadMarkdownSkills(): Promise<LoadSkillsResult> {
       path.join(env.continueHome, SKILLS_DIR),
     ];
 
-    const skillFilePaths = (
-      await Promise.all(
-        skillsDirs.map((skillDir) => getSkillFilesFromDir(skillDir)),
-      )
-    ).flat();
+    const filesBySource = await Promise.all(
+      skillsDirs.map((dir) => getSkillFilesFromDir(dir)),
+    );
 
-    // The first matching skill wins: project Continue, project Claude mirror,
-    // then global Continue. Serial reads preserve this precedence.
+    // Project Continue skills override their Claude mirrors and global skills.
     const seenNames = new Set<string>();
-    for (const skillFilePath of skillFilePaths) {
-      try {
+    for (const files of filesBySource) {
+      for (const skillFilePath of files.sort()) {
+        try {
           const content = await fsPromises.readFile(skillFilePath, "utf-8");
           const { frontmatter, markdown } = parseMarkdownRule(content) as {
             frontmatter: { name?: string; description?: string };
             markdown: string;
           };
-
           const validatedFrontmatter =
             skillFrontmatterSchema.parse(frontmatter);
 
@@ -122,24 +118,24 @@ export async function loadMarkdownSkills(): Promise<LoadSkillsResult> {
           if (seenNames.has(normalizedName)) {
             continue;
           }
-          seenNames.add(normalizedName);
 
           const filesInSkillsDirectory = getFilePathsInSkillDirectory(
             cwd,
             skillFilePath,
           );
-
           skills.push({
             ...validatedFrontmatter,
             content: markdown,
             path: getRelativePath(cwd, skillFilePath),
             files: filesInSkillsDirectory,
           });
+          seenNames.add(normalizedName);
         } catch (error) {
           errors.push({
             fatal: false,
             message: `Failed to parse markdown skill file: ${error instanceof Error ? error.message : error}`,
           });
+        }
       }
     }
   } catch (err) {

@@ -29,7 +29,14 @@ describe("defaultPolicies", () => {
   });
 
   it("should have correct permissions for write tools", () => {
-    const writeTools = ["Write", "Edit", "MultiEdit", "Bash", "Fetch", "UploadArtifact"];
+    const writeTools = [
+      "Write",
+      "Edit",
+      "MultiEdit",
+      "Bash",
+      "Fetch",
+      "UploadArtifact",
+    ];
 
     for (const tool of writeTools) {
       const policy = DEFAULT_TOOL_POLICIES.find((p) => p.tool === tool);
@@ -66,6 +73,8 @@ describe("defaultPolicies", () => {
 test("headless default policy requires approval for outbound and shell tools", () => {
   const headless = getDefaultToolPolicies(true);
   for (const tool of ["Bash", "Fetch", "UploadArtifact", "*"]) {
-    expect(headless.find((policy) => policy.tool === tool)?.permission).toBe("ask");
+    expect(headless.find((policy) => policy.tool === tool)?.permission).toBe(
+      "ask",
+    );
   }
 });

@@ -83,8 +83,14 @@ This is the skill body.
     fs.mkdirSync(authoritative, { recursive: true });
     fs.mkdirSync(mirror, { recursive: true });
     const frontmatter = `---\nname: Same Skill\ndescription: Synthetic test\n---\n`;
-    fs.writeFileSync(path.join(authoritative, "SKILL.md"), frontmatter + "authoritative");
-    fs.writeFileSync(path.join(mirror, "SKILL.md"), frontmatter + "mirror");
+    fs.writeFileSync(
+      path.join(authoritative, "SKILL.md"),
+      frontmatter + "authoritative",
+    );
+    fs.writeFileSync(
+      path.join(mirror, "SKILL.md"),
+      frontmatter + "mirror",
+    );
 
     const result = await loadMarkdownSkills();
     expect(result.errors).toEqual([]);

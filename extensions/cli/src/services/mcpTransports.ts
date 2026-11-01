@@ -7,7 +7,10 @@ import {
   StdioMcpServer,
 } from "node_modules/@continuedev/config-yaml/dist/schemas/mcp/index.js";
 
-import { assertSafeMcpTransport, buildStdioMcpEnvironment } from "./mcpTransportSecurity.js";
+import {
+  assertSafeMcpTransport,
+  buildStdioMcpEnvironment,
+} from "./mcpTransportSecurity.js";
 import { MCPConnectionInfo } from "./types.js";
 
 export function constructSseTransport(
