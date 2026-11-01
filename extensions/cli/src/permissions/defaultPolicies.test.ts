@@ -70,7 +70,7 @@ describe("defaultPolicies", () => {
   });
 });
 
-test("headless default policy requires approval for outbound and shell tools", () => {
+test("getDefaultToolPolicies requires approval for headless tools", () => {
   const headless = getDefaultToolPolicies(true);
   for (const tool of ["Bash", "Fetch", "UploadArtifact", "*"]) {
     expect(headless.find((policy) => policy.tool === tool)?.permission).toBe(

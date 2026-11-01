@@ -37,11 +37,15 @@ test("getPersistedModelName isolates synthetic project workspaces", () => {
   expect(getPersistedModelName(publicWorkspace)).toBe(
     "public-provider-model",
   );
-  expect(getPersistedModelName(privateWorkspace)).toBe("private-provider-model");
+  expect(getPersistedModelName(privateWorkspace)).toBe(
+    "private-provider-model",
+  );
 
   persistModelName(null, publicWorkspace);
   expect(getPersistedModelName(publicWorkspace)).toBeNull();
-  expect(getPersistedModelName(privateWorkspace)).toBe("private-provider-model");
+  expect(getPersistedModelName(privateWorkspace)).toBe(
+    "private-provider-model",
+  );
 });
 
 test("getCliWorkspaceSelectionKey does not persist workspace path strings", () => {

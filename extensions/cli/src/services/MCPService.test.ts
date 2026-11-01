@@ -238,7 +238,9 @@ describe("MCPService", () => {
         ],
       } as AssistantConfig;
 
-      await expect(mcpService.doInitialize(sseAssistant, false, true)).rejects.toThrow(
+      await expect(
+        mcpService.doInitialize(sseAssistant, false, true),
+      ).rejects.toThrow(
         "MCP TLS certificate verification cannot be disabled",
       );
       expect(SSEClientTransport).not.toHaveBeenCalled();
@@ -309,7 +311,9 @@ describe("MCPService", () => {
         ],
       } as AssistantConfig;
 
-      await expect(mcpService.doInitialize(httpAssistant, false, true)).rejects.toThrow(
+      await expect(
+        mcpService.doInitialize(httpAssistant, false, true),
+      ).rejects.toThrow(
         "MCP TLS certificate verification cannot be disabled",
       );
       expect(StreamableHTTPClientTransport).not.toHaveBeenCalled();
