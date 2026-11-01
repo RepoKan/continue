@@ -74,10 +74,20 @@ export class ModelService
     // Try to use the preferred model (agent file or persisted)
     if (preferredModelName) {
       // During initialization, we need to check against availableModels directly
-      const modelIndex = this.availableModels.findIndex((model) => {
-        const name = (model as any).name || (model as any).model;
-        return name === preferredModelName;
-      });
+      const modelMatches = this.availableModels
+        .map((model, index) => ({ model, index }))
+        .filter(({ model }) => {
+          const name = model.name || model.model;
+          return name === preferredModelName;
+        });
+      // Duplicate names can carry different providers, endpoints or API keys.
+      // Never silently route a saved selection to the first matching model.
+      if (modelMatches.length > 1) {
+        throw new Error(
+          "Ambiguous model name in configuration; choose a uniquely named model",
+        );
+      }
+      const modelIndex = modelMatches[0]?.index ?? -1;
       if (modelIndex === -1) {
         // Preferred model not found, use default model selection
         const [llmApi, model] = getLlmApi(assistant, authConfig);

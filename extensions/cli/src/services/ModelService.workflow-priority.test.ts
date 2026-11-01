@@ -101,6 +101,36 @@ describe("ModelService agent file model prioritization", () => {
     );
   });
 
+  it("rejects duplicate model names rather than restoring the wrong provider", async () => {
+    const { getModelName } = await import("../auth/workos.js");
+    vi.mocked(getModelName).mockReturnValue("same-name");
+    const assistantWithDuplicates = {
+      models: [
+        {
+          provider: "openai",
+          model: "first",
+          name: "same-name",
+          apiKey: "synthetic-key-one",
+        },
+        {
+          provider: "openrouter",
+          model: "second",
+          name: "same-name",
+          apiKey: "synthetic-key-two",
+        },
+      ],
+    } as AssistantUnrolled;
+
+    await expect(
+      modelService.doInitialize(
+        assistantWithDuplicates,
+        mockAuthConfig,
+        undefined,
+      ),
+    ).rejects.toThrow("Ambiguous model name in configuration");
+    expect(config.createLlmApi).not.toHaveBeenCalled();
+  });
+
   it("should fall back to persisted model when no agent file model is specified", async () => {
     const agentFileServiceState: AgentFileServiceState = {
       agentFile: {
