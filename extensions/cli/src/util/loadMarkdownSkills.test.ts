@@ -77,6 +77,21 @@ This is the skill body.
     );
   });
 
+  it("prefers project Continue skills over project Claude mirrors by name", async () => {
+    const authoritative = path.join(tmpDir, ".continue", "skills", "demo");
+    const mirror = path.join(tmpDir, ".claude", "skills", "demo");
+    fs.mkdirSync(authoritative, { recursive: true });
+    fs.mkdirSync(mirror, { recursive: true });
+    const frontmatter = `---\nname: Same Skill\ndescription: Synthetic test\n---\n`;
+    fs.writeFileSync(path.join(authoritative, "SKILL.md"), frontmatter + "authoritative");
+    fs.writeFileSync(path.join(mirror, "SKILL.md"), frontmatter + "mirror");
+
+    const result = await loadMarkdownSkills();
+    expect(result.errors).toEqual([]);
+    expect(result.skills).toHaveLength(1);
+    expect(result.skills[0].content).toContain("authoritative");
+  });
+
   it("returns error for invalid frontmatter", async () => {
     const skillDir = path.join(tmpDir, ".continue", "skills", "bad-skill");
     fs.mkdirSync(skillDir, { recursive: true });

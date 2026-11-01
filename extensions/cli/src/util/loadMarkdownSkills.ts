@@ -104,9 +104,11 @@ export async function loadMarkdownSkills(): Promise<LoadSkillsResult> {
       )
     ).flat();
 
-    await Promise.all(
-      skillFilePaths.map(async (skillFilePath) => {
-        try {
+    // The first matching skill wins: project Continue, project Claude mirror,
+    // then global Continue. Serial reads preserve this precedence.
+    const seenNames = new Set<string>();
+    for (const skillFilePath of skillFilePaths) {
+      try {
           const content = await fsPromises.readFile(skillFilePath, "utf-8");
           const { frontmatter, markdown } = parseMarkdownRule(content) as {
             frontmatter: { name?: string; description?: string };
@@ -115,6 +117,12 @@ export async function loadMarkdownSkills(): Promise<LoadSkillsResult> {
 
           const validatedFrontmatter =
             skillFrontmatterSchema.parse(frontmatter);
+
+          const normalizedName = validatedFrontmatter.name.trim().toLowerCase();
+          if (seenNames.has(normalizedName)) {
+            continue;
+          }
+          seenNames.add(normalizedName);
 
           const filesInSkillsDirectory = getFilePathsInSkillDirectory(
             cwd,
@@ -132,9 +140,8 @@ export async function loadMarkdownSkills(): Promise<LoadSkillsResult> {
             fatal: false,
             message: `Failed to parse markdown skill file: ${error instanceof Error ? error.message : error}`,
           });
-        }
-      }),
-    );
+      }
+    }
   } catch (err) {
     errors.push({
       fatal: false,
