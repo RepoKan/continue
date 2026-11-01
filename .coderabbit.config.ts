@@ -70,6 +70,16 @@ export default defineConfig((ctx) => {
       profile: ordinaryCli ? "chill" : "assertive",
       poem: false,
       auto_approvals: { enabled: false },
+      request_changes_workflow: false,
+      high_level_summary: true,
+      review_status: true,
+      auto_review: {
+        enabled: true,
+        drafts: true,
+        base_branches: [],
+        auto_incremental_review: true,
+        auto_pause_after_reviewed_commits: 2,
+      },
       path_instructions: [
         {
           path: "**",
@@ -89,12 +99,12 @@ export default defineConfig((ctx) => {
         {
           path: "extensions/cli/**",
           instructions:
-            "Validate CLI changes with the current pinned Node runtime, CLI typecheck, built-entry syntax checks, and focused and full tests as appropriate to the change. Preserve local profiles, MCP/tools and reload/integration contracts.",
+            "Validate CLI changes with the current pinned Node runtime, CLI typecheck, built-entry syntax checks, and focused and full tests as appropriate to the change. Preserve local profiles, MCP/tools and reload/integration contracts. Review built-in versus MCP permission identity, headless fail-closed approvals, cross-origin redirect credential handling, concurrent subagent isolation, cancellation, and workspace-scoped model selection.",
         },
         {
           path: ".github/**",
           instructions:
-            "Use trusted workflow refs, least privilege and verify the exact reviewed head SHA. Do not expose credentials to untrusted code or bypass checks, approvals or branch protections.",
+            "Use trusted workflow refs, least privilege and verify the exact reviewed head SHA. Check scheduled deletion and release automation, and cross-workflow privilege boundaries. Do not expose credentials to untrusted code or bypass checks, approvals or branch protections.",
         },
         {
           path: "**/package-lock.json",
