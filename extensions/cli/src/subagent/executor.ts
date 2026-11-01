@@ -1,6 +1,7 @@
 import type { ChatHistoryItem } from "core";
 
 import { services } from "../services/index.js";
+import { getSubagentContext, runWithSubagentContext } from "./sessionContext.js";
 import type { ModelServiceState } from "../services/types.js";
 import { streamChatResponse } from "../stream/streamChatResponse.js";
 import { escapeEvents } from "../util/cli.js";
@@ -71,26 +72,6 @@ export async function executeSubAgent(
     // Build agent system message
     const systemMessage = await buildAgentSystemMessage(subAgent, services);
 
-    // Store original system message function
-    const originalGetSystemMessage = services.systemMessage?.getSystemMessage;
-
-    // Store original ChatHistoryService ready state
-    const chatHistorySvc = services.chatHistory;
-    const originalIsReady =
-      chatHistorySvc && typeof chatHistorySvc.isReady === "function"
-        ? chatHistorySvc.isReady
-        : undefined;
-
-    // Override system message for this execution
-    if (services.systemMessage) {
-      services.systemMessage.getSystemMessage = async () => systemMessage;
-    }
-
-    // Temporarily disable ChatHistoryService to prevent it from interfering with child session
-    if (chatHistorySvc && originalIsReady) {
-      chatHistorySvc.isReady = () => false;
-    }
-
     const chatHistory = [
       {
         message: {
@@ -117,8 +98,13 @@ export async function executeSubAgent(
     try {
       let accumulatedOutput = "";
 
-      // Execute the chat stream with child session
-      await streamChatResponse(
+      // Keep the child in an independent asynchronous context.
+      const parent = getSubagentContext();
+      const permissions = parent?.permissions ?? services.toolPermissions.getState().permissions;
+      const isHeadless = parent?.isHeadless ?? services.toolPermissions.isHeadless();
+
+      await runWithSubagentContext({ systemMessage, permissions, isHeadless }, () =>
+        streamChatResponse(
         chatHistory,
         model,
         llmApi,
@@ -139,6 +125,7 @@ export async function executeSubAgent(
           },
         },
         false, // Not compacting
+        ),
       );
 
       // The last message (mostly) contains the important output to be submitted back to the main agent
@@ -158,20 +145,7 @@ export async function executeSubAgent(
         response,
       };
     } finally {
-      if (escapeHandler) {
-        escapeEvents.removeListener("user-escape", escapeHandler);
-      }
-
-      // Restore original system message function
-      if (services.systemMessage && originalGetSystemMessage) {
-        services.systemMessage.getSystemMessage = originalGetSystemMessage;
-      }
-
-      // Restore original ChatHistoryService ready state
-      if (chatHistorySvc && originalIsReady) {
-        chatHistorySvc.isReady = originalIsReady;
-      }
-
+      escapeEvents.removeListener("user-escape", escapeHandler);
     }
   } catch (error: any) {
     logger.error("Subagent execution failed", {

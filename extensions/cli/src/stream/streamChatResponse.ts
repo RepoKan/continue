@@ -10,6 +10,7 @@ import type {
 
 import { pruneLastMessage } from "../compaction.js";
 import { services } from "../services/index.js";
+import { getSubagentContext } from "../subagent/sessionContext.js";
 import { telemetryService } from "../telemetry/telemetryService.js";
 import { applyChatCompletionToolOverrides } from "../tools/applyToolOverrides.js";
 import { ToolCall } from "../tools/index.js";
@@ -434,7 +435,8 @@ export async function streamChatResponse(
     hasCallbacks: !!callbacks,
   });
 
-  const isHeadless = services.toolPermissions.isHeadless();
+  const isHeadless =
+    getSubagentContext()?.isHeadless ?? services.toolPermissions.isHeadless();
 
   let fullResponse = "";
   let finalResponse = "";

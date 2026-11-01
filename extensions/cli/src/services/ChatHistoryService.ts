@@ -2,6 +2,7 @@ import type { ChatHistoryItem, ToolStatus } from "core/index.js";
 import { createHistoryItem } from "core/util/messageConversion.js";
 
 import { loadSessionById, updateSessionHistory } from "../session.js";
+import { getSubagentContext } from "../subagent/sessionContext.js";
 import { logger } from "../util/logger.js";
 
 import { BaseService } from "./BaseService.js";
@@ -39,6 +40,17 @@ export class ChatHistoryService extends BaseService<ChatHistoryState> {
       isRemoteMode: false,
     });
     this.setMaxListeners(50);
+  }
+
+  override isReady(): boolean {
+    return !getSubagentContext() && super.isReady();
+  }
+
+  protected override setState(newState: Partial<ChatHistoryState>): void {
+    if (getSubagentContext()) {
+      throw new Error("Subagent cannot modify shared chat history");
+    }
+    super.setState(newState);
   }
 
   private setHistoryInternal(
@@ -299,6 +311,9 @@ export class ChatHistoryService extends BaseService<ChatHistoryState> {
     result: string,
     status: ToolStatus = "done",
   ): void {
+    if (getSubagentContext()) {
+      return;
+    }
     // Find the last assistant message with this tool call
     let targetIndex = -1;
     for (let i = this.currentState.history.length - 1; i >= 0; i--) {
@@ -334,6 +349,9 @@ export class ChatHistoryService extends BaseService<ChatHistoryState> {
    * Update a tool's status (e.g., set to "calling" immediately on approval)
    */
   updateToolStatus(toolCallId: string, status: ToolStatus): void {
+    if (getSubagentContext()) {
+      return;
+    }
     // Find the last assistant message with this tool call
     let targetIndex = -1;
     for (let i = this.currentState.history.length - 1; i >= 0; i--) {
@@ -404,6 +422,9 @@ export class ChatHistoryService extends BaseService<ChatHistoryState> {
    * Get an immutable copy of the current history
    */
   getHistory(): ChatHistoryItem[] {
+    if (getSubagentContext()) {
+      throw new Error("Subagent cannot access shared chat history");
+    }
     return [...this.currentState.history];
   }
 
@@ -411,6 +432,9 @@ export class ChatHistoryService extends BaseService<ChatHistoryState> {
    * Get history for LLM (considering compaction)
    */
   getHistoryForLLM(compactionIndex?: number | null): ChatHistoryItem[] {
+    if (getSubagentContext()) {
+      throw new Error("Subagent cannot access shared chat history");
+    }
     const index = compactionIndex ?? this.currentState.compactionIndex;
     const full = this.currentState.history;
     if (index === null || index === undefined || index >= full.length) {
@@ -504,6 +528,9 @@ export class ChatHistoryService extends BaseService<ChatHistoryState> {
    * Override getState to ensure deep immutability for history array
    */
   getState(): ChatHistoryState {
+    if (getSubagentContext()) {
+      throw new Error("Subagent cannot access shared chat history");
+    }
     const stateRef = this.currentState;
     const historyRef = stateRef.history;
 
