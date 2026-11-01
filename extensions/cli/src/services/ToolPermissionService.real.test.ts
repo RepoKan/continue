@@ -40,7 +40,7 @@ describe("ToolPermissionService - Real Tool Permission Test", () => {
       expect(result.permission).toBe("exclude");
     });
 
-    it("should allow Bash tool in plan mode", () => {
+    it("should block Bash tool in plan mode", () => {
       const permissions = service.getPermissions();
       const toolCall = {
         name: "Bash",
@@ -49,7 +49,7 @@ describe("ToolPermissionService - Real Tool Permission Test", () => {
       const result = checkToolPermission(toolCall, permissions);
 
       console.log(`Bash permission check result:`, result);
-      expect(result.permission).toBe("allow");
+      expect(result.permission).toBe("exclude");
     });
 
     it("should allow Read tool in plan mode", () => {
@@ -76,7 +76,7 @@ describe("ToolPermissionService - Real Tool Permission Test", () => {
       expect(result.permission).toBe("allow");
     });
 
-    it("should allow unknown tools in plan mode (for MCP tools via wildcard)", () => {
+    it("should block unknown tools in plan mode", () => {
       const permissions = service.getPermissions();
       const toolCall = {
         name: "some_mcp_tool",
@@ -85,8 +85,8 @@ describe("ToolPermissionService - Real Tool Permission Test", () => {
       const result = checkToolPermission(toolCall, permissions);
 
       console.log(`some_mcp_tool permission check result:`, result);
-      // Plan mode allows MCP and other non-write tools via wildcard
-      expect(result.permission).toBe("allow");
+      // Plan mode blocks unknown tools via wildcard
+      expect(result.permission).toBe("exclude");
     });
   });
 
