@@ -1,9 +1,7 @@
 import type { ChatHistoryItem } from "core";
 
 import { services } from "../services/index.js";
-import { serviceContainer } from "../services/ServiceContainer.js";
-import type { ToolPermissionServiceState } from "../services/ToolPermissionService.js";
-import { ModelServiceState, SERVICE_NAMES } from "../services/types.js";
+import type { ModelServiceState } from "../services/types.js";
 import { streamChatResponse } from "../stream/streamChatResponse.js";
 import { escapeEvents } from "../util/cli.js";
 import { logger } from "../util/logger.js";
@@ -60,11 +58,6 @@ export async function executeSubAgent(
 ): Promise<SubAgentResult> {
   const { agent: subAgent, prompt, abortController, onOutputUpdate } = options;
 
-  const mainAgentPermissionsState =
-    await serviceContainer.get<ToolPermissionServiceState>(
-      SERVICE_NAMES.TOOL_PERMISSIONS,
-    );
-
   try {
     logger.debug("Starting subagent execution", {
       agent: subAgent.model?.name,
@@ -74,19 +67,6 @@ export async function executeSubAgent(
     if (!model || !llmApi) {
       throw new Error("Model or LLM API not available");
     }
-
-    // allow all tools for now
-    // todo: eventually we want to show the same prompt in a dialog whether asking whether that tool call is allowed or not
-
-    serviceContainer.set<ToolPermissionServiceState>(
-      SERVICE_NAMES.TOOL_PERMISSIONS,
-      {
-        ...mainAgentPermissionsState,
-        permissions: {
-          policies: [{ tool: "*", permission: "allow" }],
-        },
-      },
-    );
 
     // Build agent system message
     const systemMessage = await buildAgentSystemMessage(subAgent, services);
@@ -192,11 +172,6 @@ export async function executeSubAgent(
         chatHistorySvc.isReady = originalIsReady;
       }
 
-      // Restore original main agent tool permissions
-      serviceContainer.set<ToolPermissionServiceState>(
-        SERVICE_NAMES.TOOL_PERMISSIONS,
-        mainAgentPermissionsState,
-      );
     }
   } catch (error: any) {
     logger.error("Subagent execution failed", {
