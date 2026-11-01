@@ -1,11 +1,12 @@
 import type { ChatHistoryItem } from "core";
 
 import { services } from "../services/index.js";
-import { getSubagentContext, runWithSubagentContext } from "./sessionContext.js";
 import type { ModelServiceState } from "../services/types.js";
 import { streamChatResponse } from "../stream/streamChatResponse.js";
 import { escapeEvents } from "../util/cli.js";
 import { logger } from "../util/logger.js";
+
+import { getSubagentContext, runWithSubagentContext } from "./sessionContext.js";
 
 /**
  * Options for executing a subagent
@@ -98,34 +99,38 @@ export async function executeSubAgent(
     try {
       let accumulatedOutput = "";
 
-      // Keep the child in an independent asynchronous context.
+      // Snapshot effective parent permissions without modifying global services.
       const parent = getSubagentContext();
-      const permissions = parent?.permissions ?? services.toolPermissions.getState().permissions;
-      const isHeadless = parent?.isHeadless ?? services.toolPermissions.isHeadless();
+      const permissions =
+        parent?.permissions ?? services.toolPermissions.getState().permissions;
+      const isHeadless =
+        parent?.isHeadless ?? services.toolPermissions.isHeadless();
 
-      await runWithSubagentContext({ systemMessage, permissions, isHeadless }, () =>
-        streamChatResponse(
-        chatHistory,
-        model,
-        llmApi,
-        abortController,
-        {
-          onContent: (content: string) => {
-            accumulatedOutput += content;
-            if (onOutputUpdate) {
-              onOutputUpdate(accumulatedOutput);
-            }
-          },
-          onToolResult: (result: string) => {
-            // todo: skip tool outputs - show tool names and params
-            accumulatedOutput += `\n\n${result}`;
-            if (onOutputUpdate) {
-              onOutputUpdate(accumulatedOutput);
-            }
-          },
-        },
-        false, // Not compacting
-        ),
+      await runWithSubagentContext(
+        { systemMessage, permissions, isHeadless },
+        () =>
+          streamChatResponse(
+            chatHistory,
+            model,
+            llmApi,
+            abortController,
+            {
+              onContent: (content: string) => {
+                accumulatedOutput += content;
+                if (onOutputUpdate) {
+                  onOutputUpdate(accumulatedOutput);
+                }
+              },
+              onToolResult: (result: string) => {
+                // todo: skip tool outputs - show tool names and params
+                accumulatedOutput += `\n\n${result}`;
+                if (onOutputUpdate) {
+                  onOutputUpdate(accumulatedOutput);
+                }
+              },
+            },
+            false, // Not compacting
+          ),
       );
 
       // The last message (mostly) contains the important output to be submitted back to the main agent
