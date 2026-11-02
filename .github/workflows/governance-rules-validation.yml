@@ -8,6 +8,7 @@ on:
       - ".continue/checks/**"
       - ".continue/skills/**"
       - "scripts/validate-governance-rules.py"
+      - "scripts/test_validate_governance_rules.py"
       - ".github/workflows/governance-rules-validation.yml"
   push:
     branches:
@@ -19,6 +20,7 @@ on:
       - ".continue/checks/**"
       - ".continue/skills/**"
       - "scripts/validate-governance-rules.py"
+      - "scripts/test_validate_governance_rules.py"
       - ".github/workflows/governance-rules-validation.yml"
   workflow_dispatch:
 
@@ -43,3 +45,6 @@ jobs:
 
       - name: Validate rule IDs, roles, references, and dependency graph
         run: python3 scripts/validate-governance-rules.py
+
+      - name: Test stable governance rule ID validation
+        run: python3 scripts/test_validate_governance_rules.py

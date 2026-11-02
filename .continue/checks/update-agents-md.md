@@ -50,11 +50,11 @@ An update is NOT needed for:
 - Test additions without behavioral changes
 - Documentation-only changes
 
-### Step 4: Make Updates (Leaf-First)
+### Step 4: Prepare Proposed Updates (Leaf-First)
 
 If updates are needed, work leaf-first (most specific nodes first, then ancestors):
 
-1. Write specific edits to the intent file(s)
+1. Prepare specific proposed edits for the intent file(s) without modifying them
 2. Keep updates **dense and high-signal** - compress to essentials
 3. Follow the existing structure/format of the intent file
 4. Use the LCA principle: place facts at the shallowest node that covers all relevant code

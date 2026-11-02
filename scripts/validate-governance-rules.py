@@ -51,6 +51,13 @@ def main() -> None:
         fail("no GOV rule headings found")
     if len(headings) != len(set(headings)):
         fail("duplicate GOV rule headings")
+    required_ids = {f"GOV-{number:03d}" for number in range(1, 29)}
+    heading_ids = set(headings)
+    if heading_ids != required_ids:
+        fail(
+            f"stable GOV ID set mismatch: missing={sorted(required_ids - heading_ids)}, "
+            f"unexpected={sorted(heading_ids - required_ids)}"
+        )
 
     sections: dict[str, str] = {}
     matches = list(RULE_HEADING.finditer(policy))
