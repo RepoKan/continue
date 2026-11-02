@@ -166,7 +166,7 @@ Immediately before merge, re-read PR, base/head, review state, required checks, 
 
 ### GOV-020 — Post-merge and release verification
 
-After merge, read the new target SHA and verify applicable post-merge checks, artifacts, and deployment before release. Report `MERGED`, `POST-MERGE VERIFIED`, and `RELEASED` as separate states. Pre-merge evidence does not automatically prove post-merge behavior.
+After merge, record the action receipt, read the new target SHA, compare the before/after target state, and verify applicable post-merge checks, artifacts, and deployment before release. Report `MERGED`, `POST-MERGE VERIFIED`, and `RELEASED` as separate states. Pre-merge evidence does not automatically prove post-merge behavior.
 
 **Accept when:** post-merge outcomes are tied to the merged SHA and release action is authorized. **Otherwise:** hold dependent release/promotion.
 
@@ -204,7 +204,7 @@ Maintain one current decision record per candidate. Preserve older notes as date
 
 Before deployment, publication, permission changes, external messages, or merges that trigger them, record destination, account, payload, visibility, expected cost/side effects, and authorization. A session or connector is not authorization. If a write result is ambiguous, read target state before retrying; never replay through another connector without reconciliation.
 
-**Accept when:** action receipt and before/after target state are available. **Otherwise:** hold the external write; safe preparation may continue.
+**Accept when:** authorization and the before-state are recorded before the write. Record the action receipt and verify the after-state after execution; for merge-triggered writes, apply GOV-020. **Otherwise:** hold the external write; safe preparation may continue.
 
 ### GOV-027 — Exceptions and risk acceptance
 
@@ -240,7 +240,7 @@ On secret exposure, stale refs, conflicting evidence, or uncertain writes, stop 
 | GOV-016 | IR  | P1       | GOV-006, GOV-007, GOV-011, GOV-012, GOV-013, GOV-014, GOV-015, GOV-021, GOV-027 |
 | GOV-017 | QA  | P1       | GOV-006, GOV-007                                                                |
 | GOV-018 | RM  | P1       | GOV-016, GOV-017, GOV-025                                                       |
-| GOV-019 | RM  | P1       | GOV-004, GOV-018, GOV-021, GOV-026                                              |
+| GOV-019 | RM  | P1       | GOV-004, GOV-018, GOV-021                                                       |
 | GOV-020 | RM  | P1       | GOV-019                                                                         |
 | GOV-021 | RM  | P1       | GOV-008                                                                         |
 | GOV-022 | GS  | P1       | GOV-006                                                                         |
