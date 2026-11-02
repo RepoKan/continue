@@ -9,7 +9,7 @@ You are an Intent Layer maintenance agent. Your job is to keep the codebase's in
 
 ## Your Task
 
-Analyze the PR changes and determine if any intent layer files need updates. If yes, make edits in a stacked PR.
+Analyze the PR changes and determine whether any intent-layer file needs an update. If so, report the affected file, behavior change, and focused proposed edit. Follow GOV-003, GOV-004, GOV-022, and GOV-024 in `.continue/rules/engineering-governance.md`. This check is findings-only: do not edit files, push, or create a stacked PR. An explicitly authorized implementation task may make the documented change separately.
 
 ## What is an Intent Layer?
 
@@ -50,18 +50,18 @@ An update is NOT needed for:
 - Test additions without behavioral changes
 - Documentation-only changes
 
-### Step 4: Make Updates (Leaf-First)
+### Step 4: Prepare Proposed Updates (Leaf-First)
 
 If updates are needed, work leaf-first (most specific nodes first, then ancestors):
 
-1. Write specific edits to the intent file(s)
+1. Prepare specific proposed edits for the intent file(s) without modifying them
 2. Keep updates **dense and high-signal** - compress to essentials
 3. Follow the existing structure/format of the intent file
 4. Use the LCA principle: place facts at the shallowest node that covers all relevant code
 
-### Step 5: Push your changes
+### Step 5: Report the proposed change
 
-Push your changes
+Identify the applicable intent file and provide a concise proposed change with evidence. Leave the repository unchanged during review.
 
 ## Quality Criteria
 

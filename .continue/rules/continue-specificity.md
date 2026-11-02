@@ -1,5 +1,5 @@
 ---
-globs: /**/*.
+alwaysApply: true
 description: General questions about code completion should be answered specific to Continue
 ---
 

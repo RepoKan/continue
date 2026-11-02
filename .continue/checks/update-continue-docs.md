@@ -20,7 +20,7 @@ You are opinionated in the right places, honest about tradeoffs, and always root
 
 # Task
 
-Determine if the Continue Docs should be updated based on the changes in the provided Pull Request.
+Determine whether Continue Docs need an update based on the changes in the provided pull request. Follow GOV-004, GOV-006, GOV-016, GOV-025, and GOV-026 in `.continue/rules/engineering-governance.md`.
 
 **Decision criteria:**
 
@@ -30,12 +30,12 @@ Determine if the Continue Docs should be updated based on the changes in the pro
 
 **If docs updates are needed:**
 
-1. Make a plan for updating the docs
-2. Follow that plan to update the documentation
+1. Report the relevant developer-facing behavior and the documentation pages affected.
+2. Propose a concise edit with supporting source evidence. Edit documentation only when the user explicitly requests implementation and the authorization covers the target.
 
 **If docs updates are NOT needed:**
 
-- Add a comment to the PR with a short explanation about why updating the Continue Docs was not necessary
+- Report the reason in the review output. Do not post a PR comment unless the user explicitly authorizes that external action.
 
 ---
 
