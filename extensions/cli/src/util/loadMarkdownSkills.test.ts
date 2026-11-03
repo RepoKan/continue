@@ -105,11 +105,19 @@ This is the skill body.
     fs.mkdirSync(mirror, { recursive: true });
     fs.writeFileSync(
       path.join(authoritative, "SKILL.md"),
-      '---\nname: Review\ndescription: Synthetic example\n---\nauthoritative skill',
+      `---
+name: Review
+description: Synthetic example
+---
+authoritative skill`,
     );
     fs.writeFileSync(
       path.join(mirror, "SKILL.md"),
-      '---\nname: " review "\ndescription: Synthetic example\n---\nmirror skill',
+      `---
+name: " review "
+description: Synthetic example
+---
+mirror skill`,
     );
 
     const loaded = await loadMarkdownSkills();
