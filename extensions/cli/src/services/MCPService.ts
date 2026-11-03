@@ -111,7 +111,18 @@ export class MCPService
     const connectedServers = connections.filter(
       (c) => c.status === "connected",
     );
-    const tools = connectedServers.flatMap((s) => s.tools);
+    // An unqualified name shared by two servers cannot be routed safely.
+    // Hide such tools from model-facing advertisements; runTool still rejects
+    // attempts to call an ambiguous name.
+    const nameCounts = new Map<string, number>();
+    for (const server of connectedServers) {
+      for (const name of new Set(server.tools.map((tool) => tool.name))) {
+        nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1);
+      }
+    }
+    const tools = connectedServers.flatMap((server) =>
+      server.tools.filter((tool) => nameCounts.get(tool.name) === 1),
+    );
     const prompts = connectedServers.flatMap((s) => s.prompts);
 
     const newState: MCPServiceState = {
