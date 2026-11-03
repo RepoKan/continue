@@ -329,3 +329,53 @@ describe("ToolPermissionService - Mode Functionality", () => {
     });
   });
 });
+
+describe("ToolPermissionService - explicit startup mode restoration", () => {
+  for (const mode of ["plan", "auto"] as const) {
+    it(`restores normal policies when startup mode is ${mode}`, () => {
+      const options = {
+        mode,
+        allow: ["syntheticAllowedTool"],
+        ask: ["syntheticReviewedTool"],
+        exclude: ["syntheticExcludedTool"],
+        isHeadless: true,
+      };
+      const expectedNormal = new ToolPermissionService().initializeSync({
+        ...options,
+        mode: "normal",
+      }).permissions.policies;
+
+      const service = new ToolPermissionService();
+      const initial = service.initializeSync(options);
+      expect(initial.originalPolicies?.policies).toEqual(expectedNormal);
+
+      service.switchMode("normal");
+      expect(service.getPermissions().policies).toEqual(expectedNormal);
+
+      service.switchMode(mode);
+      service.switchMode("normal");
+      expect(service.getPermissions().policies).toEqual(expectedNormal);
+    });
+  }
+
+  it("restores agent-file policies after starting in plan mode", () => {
+    const agentFileState = {
+      agentFile: { name: "synthetic-agent" },
+      parsedTools: {
+        tools: [{ toolName: "Read" }],
+        mcpServers: [],
+        allBuiltIn: false,
+      },
+    } as Parameters<ToolPermissionService["initializeSync"]>[1];
+
+    const service = new ToolPermissionService();
+    const normalPolicies = new ToolPermissionService().initializeSync(
+      { mode: "normal" },
+      agentFileState,
+    ).permissions.policies;
+
+    service.initializeSync({ mode: "plan" }, agentFileState);
+    service.switchMode("normal");
+    expect(service.getPermissions().policies).toEqual(normalPolicies);
+  });
+});
