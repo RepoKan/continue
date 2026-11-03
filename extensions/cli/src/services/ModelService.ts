@@ -280,7 +280,12 @@ export class ModelService
       return false;
     }
 
-    const selectedName = selectedModel.name || selectedModel.model;
+    // Name-only persistence must never substitute "unnamed" for an empty name.
+    if (!selectedModel.name?.trim()) {
+      return false;
+    }
+
+    const selectedName = selectedModel.name;
     return (
       this.availableModels.filter(
         (model) => (model.name || model.model) === selectedName,
