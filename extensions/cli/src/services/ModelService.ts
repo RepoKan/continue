@@ -49,12 +49,29 @@ export class ModelService
       assistantModelsCount: assistant?.models?.length || 0,
     });
 
-    this.assistant = assistant;
-    this.authConfig = authConfig;
-    this.availableModels = (assistant.models?.filter(
+    const nextAvailableModels = (assistant.models?.filter(
       (model) =>
         model && (model.roles?.includes("chat") || model.roles === undefined),
     ) || []) as ModelConfig[];
+
+    // Before first initialization completes, expose the candidate list so a
+    // user can explicitly select a model after a legacy-selection error.
+    // A failed *reload* must not overwrite the last published configuration.
+    if (!this.currentState.assistant) {
+      this.assistant = assistant;
+      this.authConfig = authConfig;
+      this.availableModels = nextAvailableModels;
+    }
+
+    const commitSelection = (
+      llmApi: ModelServiceState["llmApi"],
+      model: ModelServiceState["model"],
+    ): ModelServiceState => {
+      this.assistant = assistant;
+      this.authConfig = authConfig;
+      this.availableModels = nextAvailableModels;
+      return { llmApi, model, assistant, authConfig };
+    };
 
     let preferredModelName: string | null | undefined = null;
     let modelSource = "default";
@@ -74,7 +91,7 @@ export class ModelService
     // Try to use the preferred model (agent file or persisted)
     if (preferredModelName) {
       // During initialization, we need to check against availableModels directly
-      const modelMatches = this.availableModels
+      const modelMatches = nextAvailableModels
         .map((model, index) => ({ model, index }))
         .filter(({ model }) => {
           const name = model.name || model.model;
@@ -91,17 +108,12 @@ export class ModelService
       if (modelIndex === -1) {
         // Preferred model not found, use default model selection
         const [llmApi, model] = getLlmApi(assistant, authConfig);
-        return {
-          llmApi,
-          model,
-          assistant,
-          authConfig,
-        };
+        return commitSelection(llmApi, model);
       } else {
         // Use the preferred model - but we need to handle initialization specially
         // During init, currentState isn't set yet, so switchModel would fail
         // Instead, we'll manually switch here
-        const selectedModel = this.availableModels[modelIndex];
+        const selectedModel = nextAvailableModels[modelIndex];
         logger.debug(`Using ${modelSource} model during initialization`, {
           modelIndex,
           provider: selectedModel.provider,
@@ -114,22 +126,12 @@ export class ModelService
           throw new Error(`Failed to initialize LLM with ${modelSource} model`);
         }
 
-        return {
-          llmApi,
-          model: selectedModel,
-          assistant,
-          authConfig,
-        };
+        return commitSelection(llmApi, selectedModel);
       }
     } else {
       // Use default model selection
       const [llmApi, model] = getLlmApi(assistant, authConfig);
-      return {
-        llmApi,
-        model,
-        assistant,
-        authConfig,
-      };
+      return commitSelection(llmApi, model);
     }
   }
 
