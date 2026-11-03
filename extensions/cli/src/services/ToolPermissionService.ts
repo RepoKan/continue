@@ -1,6 +1,7 @@
 import {
   AUTO_MODE_POLICIES,
   PLAN_MODE_POLICIES,
+  getDefaultToolPolicies,
 } from "src/permissions/defaultPolicies.js";
 
 import { ensurePermissionsYamlExists } from "../permissions/permissionsYamlLoader.js";
@@ -78,21 +79,41 @@ export class ToolPermissionService
     agentFileServiceState?: AgentFileServiceState,
     mcpServiceState?: MCPServiceState,
   ): ToolPermissionPolicy[] {
-    // With --agent, all available tools are allowed if not specified
+    // Agent files lacking explicit tool permissions cannot escalate privileges.
     const parsedTools = agentFileServiceState?.parsedTools;
-    if (!parsedTools) {
-      return [
-        {
-          tool: "*",
-          permission: "allow",
-        },
-      ];
+    if (
+      !parsedTools ||
+      (!parsedTools.tools.length &&
+        !parsedTools.mcpServers.length &&
+        !parsedTools.allBuiltIn)
+    ) {
+      return getDefaultToolPolicies(this.currentState.isHeadless);
     }
 
     const policies: ToolPermissionPolicy[] = [];
+    const builtInToolNames = new Set(BUILT_IN_TOOL_NAMES);
     const servers = Array.from(mcpServiceState?.connections?.values() ?? []);
+    const connectedServers = servers.filter(
+      (server) => server.status === "connected",
+    );
+    const mcpToolNameCounts = new Map<string, number>();
+
+    for (const server of connectedServers) {
+      for (const toolName of new Set(server.tools.map((tool) => tool.name))) {
+        mcpToolNameCounts.set(
+          toolName,
+          (mcpToolNameCounts.get(toolName) ?? 0) + 1,
+        );
+      }
+    }
+
+    const isSafeMcpPolicyToolName = (toolName: string): boolean =>
+      !builtInToolNames.has(toolName) &&
+      !/[*?()]/.test(toolName) &&
+      mcpToolNameCounts.get(toolName) === 1;
+
     for (const mcpServer of parsedTools.mcpServers) {
-      const server = servers?.find(
+      const server = connectedServers.find(
         (s) => s.config?.sourceSlug && s.config.sourceSlug === mcpServer,
       );
       if (!server) {
@@ -100,8 +121,17 @@ export class ToolPermissionService
         continue;
       }
 
-      const specificTools = parsedTools.tools.filter(
+      const requestedSpecificTools = parsedTools.tools.filter(
         (t) => t.mcpServer && t.toolName && t.mcpServer === mcpServer,
+      );
+      const safeServerTools = server.tools.filter((tool) =>
+        isSafeMcpPolicyToolName(tool.name),
+      );
+      const safeServerToolNames = new Set(
+        safeServerTools.map((tool) => tool.name),
+      );
+      const specificTools = requestedSpecificTools.filter((tool) =>
+        safeServerToolNames.has(tool.toolName!),
       );
 
       // In the `tools` key of an agent is comma separated strings like
@@ -116,9 +146,9 @@ export class ToolPermissionService
       // Handle MCP first
       // If ANY mcp tools are specifically called out, only allow those ones for that mcp server
       // Otherwise the blanket allow will cover all MCP tools
-      if (specificTools.length) {
+      if (requestedSpecificTools.length) {
         const specificSet = new Set(specificTools.map((t) => t.toolName));
-        const notMentioned = server.tools.filter(
+        const notMentioned = safeServerTools.filter(
           (t) => !specificSet.has(t.name),
         );
         const allowed: ToolPermissionPolicy[] = specificTools.map((t) => ({
@@ -131,6 +161,14 @@ export class ToolPermissionService
           permission: "exclude",
         }));
         policies.push(...disallowed);
+      } else {
+        // Only tools advertised by this explicitly selected MCP server.
+        policies.push(
+          ...safeServerTools.map((t) => ({
+            tool: t.name,
+            permission: "allow" as const,
+          })),
+        );
       }
     }
 
@@ -157,10 +195,19 @@ export class ToolPermissionService
       policies.push(...disallowed);
     }
 
-    // Allow all other tools
+    if (parsedTools.allBuiltIn && !specificBuiltIns.length) {
+      policies.push(
+        ...BUILT_IN_TOOL_NAMES.map((tool) => ({
+          tool,
+          permission: "allow" as const,
+        })),
+      );
+    }
+
+    // Any tool not expressly selected still needs approval.
     policies.push({
       tool: "*",
-      permission: "allow",
+      permission: "ask",
     });
 
     return policies;
@@ -205,35 +252,34 @@ export class ToolPermissionService
 
     const modePolicies = this.generateModePolicies();
 
-    let allPolicies: ToolPermissionPolicy[];
-    if (agentFileServiceState?.agentFile) {
-      // Agent file policies take full precedence on init
-      allPolicies = this.generateAgentFilePolicies(
-        agentFileServiceState,
-        mcpServiceState,
-      );
-    } else if (
+    // Keep a complete normal-mode policy snapshot even if startup begins in
+    // plan or auto. Switching back to normal must never produce an empty policy
+    // set or silently drop configured approval requirements.
+    const normalPolicies: ToolPermissionPolicy[] =
+      agentFileServiceState?.agentFile
+        ? this.generateAgentFilePolicies(
+            agentFileServiceState,
+            mcpServiceState,
+          )
+        : resolvePermissionPrecedence({
+            commandLineFlags: runtimeOverrides,
+            personalSettings: true,
+            useDefaults: true,
+            isHeadless: this.currentState.isHeadless,
+          });
+    // Explicit modes override normal/agent policy *only while active*.
+    const allPolicies =
       this.currentState.currentMode === "plan" ||
       this.currentState.currentMode === "auto"
-    ) {
-      // For plan and auto modes, use ONLY mode policies (absolute override)
-      allPolicies = [...modePolicies];
-    } else {
-      // Normal mode: combine headless + mode policies with user configuration
-      const compiledPolicies = resolvePermissionPrecedence({
-        commandLineFlags: runtimeOverrides,
-        personalSettings: true, // Enable loading from ~/.continue/permissions.yaml
-        useDefaults: true,
-        isHeadless: this.currentState.isHeadless,
-      });
-      allPolicies = [...compiledPolicies];
-    }
+        ? [...modePolicies]
+        : [...normalPolicies];
 
     this.setState({
       permissions: { policies: allPolicies },
       currentMode: this.currentState.currentMode,
       isHeadless: this.currentState.isHeadless,
       modePolicyCount: modePolicies.length,
+      originalPolicies: { policies: [...normalPolicies] },
     });
 
     (this as any).isInitialized = true;
@@ -289,8 +335,7 @@ export class ToolPermissionService
     // Store original policies when leaving normal mode for the first time
     if (
       currentMode === "normal" &&
-      newMode !== "normal" &&
-      !this.currentState.originalPolicies
+      newMode !== "normal"
     ) {
       // Deep copy the policies array to preserve the original state
       this.setState({

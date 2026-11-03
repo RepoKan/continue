@@ -9,7 +9,7 @@ import React, {
 
 import { ToolPermissionServiceState } from "src/services/ToolPermissionService.js";
 
-import { useServices } from "../hooks/useService.js";
+import { useService, useServices } from "../hooks/useService.js";
 import {
   ApiClientServiceState,
   AuthServiceState,
@@ -87,6 +87,7 @@ async function loadAndSetSession(
 function useTUIChatServices(remoteUrl?: string) {
   const isRemoteMode = useMemo(() => !!remoteUrl, [remoteUrl]);
 
+  const modelServiceResult = useService<ModelServiceState>("model");
   const { services, allReady: allServicesReady } = useServices<{
     auth: AuthServiceState;
     config: ConfigServiceState;
@@ -105,7 +106,12 @@ function useTUIChatServices(remoteUrl?: string) {
     "toolPermissions",
   ]);
 
-  return { services, allServicesReady, isRemoteMode };
+  return {
+    services,
+    allServicesReady,
+    isRemoteMode,
+    modelServiceError: modelServiceResult.error,
+  };
 }
 
 // Organization names are no longer available (Hub integration removed)
@@ -159,8 +165,32 @@ const TUIChat: React.FC<TUIChatProps> = ({
   additionalPrompts,
 }) => {
   // Use custom hook for services
-  const { services, allServicesReady, isRemoteMode } =
-    useTUIChatServices(remoteUrl);
+  const {
+    services,
+    allServicesReady,
+    isRemoteMode,
+    modelServiceError,
+  } = useTUIChatServices(remoteUrl);
+
+  const modelSelectionError = useMemo(() => {
+    const message = modelServiceError?.message;
+    if (!message) {
+      return null;
+    }
+
+    if (message.includes("Ambiguous model name")) {
+      return (
+        message +
+        ". Rename duplicate model entries so each provider or endpoint has a unique name before continuing."
+      );
+    }
+
+    if (message.includes("Legacy global CLI model selection")) {
+      return message;
+    }
+
+    return null;
+  }, [modelServiceError]);
 
   // Use navigation context
   const {
@@ -415,6 +445,11 @@ const TUIChat: React.FC<TUIChatProps> = ({
           renderMessage={renderMessage}
           refreshTrigger={staticRefreshTrigger}
         />
+        {modelSelectionError && !isRemoteMode && (
+          <Box paddingX={1}>
+            <Text color="red">{modelSelectionError}</Text>
+          </Box>
+        )}
       </Box>
 
       {/* Fixed bottom section */}

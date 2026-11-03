@@ -101,6 +101,156 @@ describe("ModelService agent file model prioritization", () => {
     );
   });
 
+  it("keeps the last published configuration after a rejected reload", async () => {
+    const { getModelName } = await import("../auth/workos.js");
+    vi.mocked(getModelName).mockReturnValue(null);
+    const originalAssistant = {
+      models: [
+        { provider: "openai", model: "first", name: "unique-one" },
+        { provider: "anthropic", model: "second", name: "unique-two" },
+      ],
+    } as AssistantUnrolled;
+    await modelService.initialize(originalAssistant, mockAuthConfig, undefined);
+
+    const conflictingAssistant = {
+      models: [
+        { provider: "openai", model: "third", name: "collision" },
+        { provider: "openrouter", model: "fourth", name: "collision" },
+        { provider: "anthropic", model: "fifth", name: "other" },
+      ],
+    } as AssistantUnrolled;
+    vi.mocked(getModelName).mockReturnValue("collision");
+
+    await expect(
+      modelService.reload(conflictingAssistant, mockAuthConfig, undefined),
+    ).rejects.toThrow("Ambiguous model name in configuration");
+
+    expect(modelService.getState().assistant).toBe(originalAssistant);
+    expect(modelService.getAvailableChatModels()).toEqual([
+      { provider: "openai", name: "unique-one", index: 0 },
+      { provider: "anthropic", name: "unique-two", index: 1 },
+    ]);
+    expect(modelService.isModelNameUnique(0)).toBe(true);
+    expect(modelService.isModelNameUnique(1)).toBe(true);
+    expect(modelService.isModelNameUnique(2)).toBe(false);
+
+    const switched = await modelService.switchModel(1);
+    expect(switched.assistant).toBe(originalAssistant);
+    expect(switched.model).toEqual(
+      expect.objectContaining({
+        name: "unique-two",
+        provider: "anthropic",
+      }),
+    );
+  });
+
+  it("rejects duplicate model names rather than restoring the wrong provider", async () => {
+    const { getModelName } = await import("../auth/workos.js");
+    vi.mocked(getModelName).mockReturnValue("same-name");
+    const assistantWithDuplicates = {
+      models: [
+        {
+          provider: "openai",
+          model: "first",
+          name: "same-name",
+          apiKey: "synthetic-key-one",
+        },
+        {
+          provider: "openrouter",
+          model: "second",
+          name: "same-name",
+          apiKey: "synthetic-key-two",
+        },
+      ],
+    } as AssistantUnrolled;
+
+    await expect(
+      modelService.doInitialize(
+        assistantWithDuplicates,
+        mockAuthConfig,
+        undefined,
+      ),
+    ).rejects.toThrow("Ambiguous model name in configuration");
+    expect(config.createLlmApi).not.toHaveBeenCalled();
+  });
+
+  it("rejects name-only persistence for duplicate selectable models", async () => {
+    const { getModelName } = await import("../auth/workos.js");
+    vi.mocked(getModelName).mockReturnValue(null);
+    const assistantWithDuplicates = {
+      models: [
+        { provider: "openai", model: "first", name: "same-name" },
+        { provider: "openrouter", model: "second", name: "same-name" },
+        { provider: "anthropic", model: "third", name: "unique-name" },
+      ],
+    } as AssistantUnrolled;
+
+    await modelService.doInitialize(
+      assistantWithDuplicates,
+      mockAuthConfig,
+      undefined,
+    );
+
+    expect(modelService.isModelNameUnique(0)).toBe(false);
+    expect(modelService.isModelNameUnique(1)).toBe(false);
+    expect(modelService.isModelNameUnique(2)).toBe(true);
+  });
+
+  it("does not persist a model without a stable nonempty name", async () => {
+    const { getModelName } = await import("../auth/workos.js");
+    vi.mocked(getModelName).mockReturnValue(null);
+    const assistant = {
+      models: [
+        { provider: "openai", model: "synthetic-first" },
+        { provider: "anthropic", model: "synthetic-second", name: "" },
+        { provider: "openrouter", model: "synthetic-third", name: "named" },
+      ],
+    } as AssistantUnrolled;
+
+    await modelService.doInitialize(assistant, mockAuthConfig, undefined);
+
+    expect(modelService.isModelNameUnique(0)).toBe(false);
+    expect(modelService.isModelNameUnique(1)).toBe(false);
+    expect(modelService.isModelNameUnique(2)).toBe(true);
+  });
+
+  it("keeps models selectable when legacy persistence blocks initialization", async () => {
+    const { getModelName } = await import("../auth/workos.js");
+    vi.mocked(getModelName).mockImplementation(() => {
+      throw new Error(
+        "Legacy global CLI model selection requires an explicit workspace model selection before requests can be routed",
+      );
+    });
+
+    const createLlmApiMock = vi.mocked(config.createLlmApi);
+    createLlmApiMock.mockImplementation(
+      (model: ModelConfig) =>
+        ({
+          provider: model.provider,
+          name: (model as any).name,
+        }) as any,
+    );
+
+    await expect(
+      modelService.doInitialize(mockAssistant, mockAuthConfig, undefined),
+    ).rejects.toThrow("Legacy global CLI model selection");
+
+    expect(modelService.getAvailableChatModels()).toEqual([
+      { provider: "anthropic", name: "claude-3-sonnet", index: 0 },
+      { provider: "openai", name: "gpt-4", index: 1 },
+      { provider: "anthropic", name: "claude-3-haiku", index: 2 },
+    ]);
+
+    await expect(modelService.switchModel(1)).resolves.toEqual(
+      expect.objectContaining({
+        model: expect.objectContaining({
+          provider: "openai",
+          name: "gpt-4",
+        }),
+      }),
+    );
+  });
+
   it("should fall back to persisted model when no agent file model is specified", async () => {
     const agentFileServiceState: AgentFileServiceState = {
       agentFile: {

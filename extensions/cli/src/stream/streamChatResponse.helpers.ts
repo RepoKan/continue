@@ -10,6 +10,7 @@ import { ToolPermissionServiceState } from "src/services/ToolPermissionService.j
 
 import { checkToolPermission } from "../permissions/permissionChecker.js";
 import { toolPermissionManager } from "../permissions/permissionManager.js";
+import { getSubagentContext } from "../subagent/sessionContext.js";
 import { ToolCallRequest, ToolPermissions } from "../permissions/types.js";
 import {
   SERVICE_NAMES,
@@ -506,12 +507,15 @@ export async function executeStreamedToolCalls(
       callbacks?.onToolStart?.(call.name, call.arguments);
 
       // Check tool permissions using helper
-      const permissionState =
-        await serviceContainer.get<ToolPermissionServiceState>(
-          SERVICE_NAMES.TOOL_PERMISSIONS,
-        );
+      const permissions =
+        getSubagentContext()?.permissions ??
+        (
+          await serviceContainer.get<ToolPermissionServiceState>(
+            SERVICE_NAMES.TOOL_PERMISSIONS,
+          )
+        ).permissions;
       const permissionResult = await checkToolPermissionApproval(
-        permissionState.permissions,
+        permissions,
         call,
         callbacks,
         isHeadless,

@@ -3,6 +3,7 @@ import { convertFromUnifiedHistory } from "core/util/messageConversion.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { services } from "../services/index.js";
+import { runWithSubagentContext } from "../subagent/sessionContext.js";
 
 // eslint-disable-next-line
 import { handleToolCalls } from "./handleToolCalls.js"; // for some reason can't resolve import groups here
@@ -389,4 +390,59 @@ describe("handleToolCalls - duplicate tool_result prevention", () => {
     );
     expect(separateToolMessages).toHaveLength(0);
   });
+  it("handleToolCalls keeps child results local while parent history is ready", async () => {
+    const toolCalls = [
+      {
+        id: "child-tool-1",
+        name: "Read",
+        arguments: {},
+        argumentsStr: "{}",
+        startNotified: false,
+      },
+    ];
+    mockPreprocess.mockResolvedValue({
+      preprocessedCalls: [],
+      errorChatEntries: [],
+    });
+    mockExecute.mockResolvedValue({
+      hasRejection: false,
+      chatHistoryEntries: [
+        {
+          role: "tool",
+          tool_call_id: "child-tool-1",
+          content: "synthetic child result",
+          status: "done",
+        },
+      ],
+    });
+
+    await runWithSubagentContext(
+      {
+        systemMessage: "synthetic child",
+        permissions: { policies: [] },
+        isHeadless: false,
+      },
+      () =>
+        handleToolCalls({
+          toolCalls,
+          chatHistory,
+          content: "synthetic response",
+          callbacks: undefined,
+          isHeadless: false,
+        }),
+    );
+
+    expect(services.chatHistory.addAssistantMessage).not.toHaveBeenCalled();
+    expect(services.chatHistory.addToolResult).not.toHaveBeenCalled();
+
+    const item = chatHistory.find(
+      (entry) => entry.message.role === "assistant" && entry.toolCallStates,
+    );
+    const state = item?.toolCallStates?.find(
+      (entry) => entry.toolCallId === "child-tool-1",
+    );
+    expect(state?.status).toBe("done");
+    expect(state?.output?.[0]?.content).toBe("synthetic child result");
+  });
+
 });

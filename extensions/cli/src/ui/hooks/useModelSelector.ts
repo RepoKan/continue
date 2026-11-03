@@ -35,6 +35,14 @@ export function useModelSelector({
     closeCurrentScreen();
 
     try {
+      if (!services.model.isModelNameUnique(model.index)) {
+        throw new Error(
+          "Model name \"" +
+            model.name +
+            "\" is not unique. Rename duplicate model entries before selecting it.",
+        );
+      }
+
       await services.model.switchModel(model.index);
       const modelInfo = services.model.getModelInfo();
 

@@ -32,7 +32,7 @@ describe("ToolPermissionService - Mode Functionality", () => {
         policies.some((p) => p.tool === "Edit" && p.permission === "exclude"),
       ).toBe(true);
       expect(
-        policies.some((p) => p.tool === "Bash" && p.permission === "allow"),
+        policies.some((p) => p.tool === "Bash" && p.permission === "exclude"),
       ).toBe(true);
 
       // Should have specific policies for read tools (allowed)
@@ -46,9 +46,9 @@ describe("ToolPermissionService - Mode Functionality", () => {
         policies.some((p) => p.tool === "List" && p.permission === "allow"),
       ).toBe(true);
 
-      // Plan mode allows all other tools (including MCP) with wildcard
+      // Plan mode blocks unclassified tools (including MCP) with wildcard
       expect(
-        policies.some((p) => p.tool === "*" && p.permission === "allow"),
+        policies.some((p) => p.tool === "*" && p.permission === "exclude"),
       ).toBe(true);
     });
 
@@ -85,6 +85,27 @@ describe("ToolPermissionService - Mode Functionality", () => {
         planPolicies.some((p) => p.tool === "Read" && p.permission === "allow"),
       ).toBe(true);
     });
+  });
+
+  it("initializeSync preserves plan restrictions when an agent file declares Bash", () => {
+    const agentFileState = {
+      agentFile: { name: "synthetic-agent" },
+      parsedTools: {
+        tools: [{ toolName: "Bash" }],
+        mcpServers: [],
+        allBuiltIn: false,
+      },
+    };
+    const state = service.initializeSync(
+      { mode: "plan" },
+      agentFileState as Parameters<ToolPermissionService["initializeSync"]>[1],
+    );
+    expect(
+      state.permissions.policies.find((policy) => policy.tool === "Bash"),
+    ).toEqual({ tool: "Bash", permission: "exclude" });
+    expect(
+      state.permissions.policies.find((policy) => policy.tool === "*"),
+    ).toEqual({ tool: "*", permission: "exclude" });
   });
 
   describe("mode switching", () => {
@@ -232,7 +253,7 @@ describe("ToolPermissionService - Mode Functionality", () => {
         policies.some((p) => p.tool === "Edit" && p.permission === "exclude"),
       ).toBe(true);
       expect(
-        policies.some((p) => p.tool === "Bash" && p.permission === "allow"),
+        policies.some((p) => p.tool === "Bash" && p.permission === "exclude"),
       ).toBe(true);
 
       // Read tools should be allowed
@@ -266,9 +287,9 @@ describe("ToolPermissionService - Mode Functionality", () => {
       // Mode policies should come first, and there should be policies
       expect(policies.length).toBeGreaterThan(0);
 
-      // Plan mode has wildcard allow policy for MCP and other tools
+      // Plan mode blocks unclassified MCP tools via wildcard
       expect(
-        policies.some((p) => p.tool === "*" && p.permission === "allow"),
+        policies.some((p) => p.tool === "*" && p.permission === "exclude"),
       ).toBe(true);
     });
   });
@@ -306,5 +327,55 @@ describe("ToolPermissionService - Mode Functionality", () => {
       expect(newState.currentMode).toBe("plan");
       expect(newState).not.toEqual(initialState);
     });
+  });
+});
+
+describe("ToolPermissionService - explicit startup mode restoration", () => {
+  for (const mode of ["plan", "auto"] as const) {
+    it(`restores normal policies when startup mode is ${mode}`, () => {
+      const options = {
+        mode,
+        allow: ["syntheticAllowedTool"],
+        ask: ["syntheticReviewedTool"],
+        exclude: ["syntheticExcludedTool"],
+        isHeadless: true,
+      };
+      const expectedNormal = new ToolPermissionService().initializeSync({
+        ...options,
+        mode: "normal",
+      }).permissions.policies;
+
+      const service = new ToolPermissionService();
+      const initial = service.initializeSync(options);
+      expect(initial.originalPolicies?.policies).toEqual(expectedNormal);
+
+      service.switchMode("normal");
+      expect(service.getPermissions().policies).toEqual(expectedNormal);
+
+      service.switchMode(mode);
+      service.switchMode("normal");
+      expect(service.getPermissions().policies).toEqual(expectedNormal);
+    });
+  }
+
+  it("restores agent-file policies after starting in plan mode", () => {
+    const agentFileState = {
+      agentFile: { name: "synthetic-agent" },
+      parsedTools: {
+        tools: [{ toolName: "Read" }],
+        mcpServers: [],
+        allBuiltIn: false,
+      },
+    } as Parameters<ToolPermissionService["initializeSync"]>[1];
+
+    const service = new ToolPermissionService();
+    const normalPolicies = new ToolPermissionService().initializeSync(
+      { mode: "normal" },
+      agentFileState,
+    ).permissions.policies;
+
+    service.initializeSync({ mode: "plan" }, agentFileState);
+    service.switchMode("normal");
+    expect(service.getPermissions().policies).toEqual(normalPolicies);
   });
 });

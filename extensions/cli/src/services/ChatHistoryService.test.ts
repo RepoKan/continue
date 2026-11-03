@@ -2,6 +2,7 @@ import type { ChatHistoryItem } from "core/index.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChatHistoryService } from "./ChatHistoryService.js";
+import { runWithSubagentContext } from "../subagent/sessionContext.js";
 
 // Mock the dependencies
 vi.mock("../session.js", () => ({
@@ -546,4 +547,40 @@ describe("ChatHistoryService", () => {
       );
     });
   });
+});
+
+it("ChatHistoryService denies isolated children access to parent history", async () => {
+  const history = new ChatHistoryService();
+  await history.initialize(
+    {
+      sessionId: "synthetic-parent",
+      history: [
+        {
+          message: { role: "user", content: "synthetic parent" },
+          contextItems: [],
+        },
+      ],
+    },
+    true,
+  );
+  const original = history.getHistory();
+  await runWithSubagentContext(
+    { systemMessage: "synthetic child", permissions: { policies: [] }, isHeadless: false },
+    async () => {
+      expect(history.isReady()).toBe(false);
+      expect(() => history.getHistory()).toThrow(
+        "Subagent cannot access shared chat history",
+      );
+      expect(() => history.getState()).toThrow(
+        "Subagent cannot access shared chat history",
+      );
+      expect(() => history.setHistory([])).toThrow(
+        "Subagent cannot modify shared chat history",
+      );
+      history.addToolResult("fake", "synthetic result");
+      history.updateToolStatus("fake", "calling");
+    },
+  );
+  expect(history.isReady()).toBe(true);
+  expect(history.getHistory()).toEqual(original);
 });

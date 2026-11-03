@@ -77,6 +77,61 @@ This is the skill body.
     );
   });
 
+  it("prefers project Continue skills over project Claude mirrors by name", async () => {
+    const authoritative = path.join(tmpDir, ".continue", "skills", "demo");
+    const mirror = path.join(tmpDir, ".claude", "skills", "demo");
+    fs.mkdirSync(authoritative, { recursive: true });
+    fs.mkdirSync(mirror, { recursive: true });
+    const frontmatter = `---\nname: Same Skill\ndescription: Synthetic test\n---\n`;
+    fs.writeFileSync(
+      path.join(authoritative, "SKILL.md"),
+      frontmatter + "authoritative",
+    );
+    fs.writeFileSync(
+      path.join(mirror, "SKILL.md"),
+      frontmatter + "mirror",
+    );
+
+    const result = await loadMarkdownSkills();
+    expect(result.errors).toEqual([]);
+    expect(result.skills).toHaveLength(1);
+    expect(result.skills[0].content).toContain("authoritative");
+  });
+
+  it("deduplicates normalized names and resolves Skills lookup variants", async () => {
+    const authoritative = path.join(tmpDir, ".continue", "skills", "first");
+    const mirror = path.join(tmpDir, ".claude", "skills", "second");
+    fs.mkdirSync(authoritative, { recursive: true });
+    fs.mkdirSync(mirror, { recursive: true });
+    fs.writeFileSync(
+      path.join(authoritative, "SKILL.md"),
+      `---
+name: Review
+description: Synthetic example
+---
+authoritative skill`,
+    );
+    fs.writeFileSync(
+      path.join(mirror, "SKILL.md"),
+      `---
+name: " review "
+description: Synthetic example
+---
+mirror skill`,
+    );
+
+    const loaded = await loadMarkdownSkills();
+    expect(loaded.skills).toHaveLength(1);
+    expect(loaded.skills[0].content).toContain("authoritative skill");
+
+    const { skillsTool } = await import("../tools/skills.js");
+    const tool = await skillsTool();
+    const result = await tool.run({ skill_name: "  rEvIeW  " });
+    expect(result).toContain("<skill_name>Review</skill_name>");
+    expect(result).toContain("authoritative skill");
+    expect(result).not.toContain("mirror skill");
+  });
+
   it("returns error for invalid frontmatter", async () => {
     const skillDir = path.join(tmpDir, ".continue", "skills", "bad-skill");
     fs.mkdirSync(skillDir, { recursive: true });
@@ -121,4 +176,9 @@ Content
     const names = result.skills.map((s) => s.name).sort();
     expect(names).toEqual(["Skill One", "Skill Two"]);
   });
+});
+
+it("normalizes skill names consistently for lookup and deduplication", async () => {
+  const mod = await import("./loadMarkdownSkills.js");
+  expect(mod.normalizeSkillName("  Review Skill  ")).toBe("review skill");
 });

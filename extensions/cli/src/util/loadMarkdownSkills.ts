@@ -28,6 +28,10 @@ const skillFrontmatterSchema = z.object({
 
 const SKILLS_DIR = "skills";
 
+export function normalizeSkillName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 /**get the relative path if the filePath is within the current working directory
  * otherwise return the absolute path
  */
@@ -88,7 +92,6 @@ async function getSkillFilesFromDir(dirPath: string): Promise<string[]> {
 export async function loadMarkdownSkills(): Promise<LoadSkillsResult> {
   const errors: { fatal: boolean; message: string }[] = [];
   const skills: Skill[] = [];
-
   const cwd = process.cwd();
 
   try {
@@ -98,43 +101,47 @@ export async function loadMarkdownSkills(): Promise<LoadSkillsResult> {
       path.join(env.continueHome, SKILLS_DIR),
     ];
 
-    const skillFilePaths = (
-      await Promise.all(
-        skillsDirs.map((skillDir) => getSkillFilesFromDir(skillDir)),
-      )
-    ).flat();
+    const filesBySource = await Promise.all(
+      skillsDirs.map((dir) => getSkillFilesFromDir(dir)),
+    );
 
-    await Promise.all(
-      skillFilePaths.map(async (skillFilePath) => {
+    // Project Continue skills override their Claude mirrors and global skills.
+    const seenNames = new Set<string>();
+    for (const files of filesBySource) {
+      for (const skillFilePath of files.sort()) {
         try {
           const content = await fsPromises.readFile(skillFilePath, "utf-8");
           const { frontmatter, markdown } = parseMarkdownRule(content) as {
             frontmatter: { name?: string; description?: string };
             markdown: string;
           };
-
           const validatedFrontmatter =
             skillFrontmatterSchema.parse(frontmatter);
+
+          const normalizedName = normalizeSkillName(validatedFrontmatter.name);
+          if (seenNames.has(normalizedName)) {
+            continue;
+          }
 
           const filesInSkillsDirectory = getFilePathsInSkillDirectory(
             cwd,
             skillFilePath,
           );
-
           skills.push({
             ...validatedFrontmatter,
             content: markdown,
             path: getRelativePath(cwd, skillFilePath),
             files: filesInSkillsDirectory,
           });
+          seenNames.add(normalizedName);
         } catch (error) {
           errors.push({
             fatal: false,
             message: `Failed to parse markdown skill file: ${error instanceof Error ? error.message : error}`,
           });
         }
-      }),
-    );
+      }
+    }
   } catch (err) {
     errors.push({
       fatal: false,
