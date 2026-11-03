@@ -144,22 +144,28 @@ describe("MCPService", () => {
       const firstClient = { callTool: vi.fn(), close: vi.fn() };
       const secondClient = { callTool: vi.fn(), close: vi.fn() };
       (mcpService as any).connections = new Map([
-        ["first-server", {
-          config: { name: "first-server" },
-          status: "connected",
-          tools: [{ name: "shared" }, { name: "first_only" }],
-          prompts: [],
-          warnings: [],
-          client: firstClient,
-        }],
-        ["second-server", {
-          config: { name: "second-server" },
-          status: "connected",
-          tools: [{ name: "shared" }, { name: "second_only" }],
-          prompts: [],
-          warnings: [],
-          client: secondClient,
-        }],
+        [
+          "first-server",
+          {
+            config: { name: "first-server" },
+            status: "connected",
+            tools: [{ name: "shared" }, { name: "first_only" }],
+            prompts: [],
+            warnings: [],
+            client: firstClient,
+          },
+        ],
+        [
+          "second-server",
+          {
+            config: { name: "second-server" },
+            status: "connected",
+            tools: [{ name: "shared" }, { name: "second_only" }],
+            prompts: [],
+            warnings: [],
+            client: secondClient,
+          },
+        ],
       ]);
 
       (mcpService as any).updateState();
