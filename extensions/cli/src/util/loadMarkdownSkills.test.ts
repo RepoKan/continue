@@ -98,6 +98,32 @@ This is the skill body.
     expect(result.skills[0].content).toContain("authoritative");
   });
 
+  it("deduplicates normalized names and resolves Skills lookup variants", async () => {
+    const authoritative = path.join(tmpDir, ".continue", "skills", "first");
+    const mirror = path.join(tmpDir, ".claude", "skills", "second");
+    fs.mkdirSync(authoritative, { recursive: true });
+    fs.mkdirSync(mirror, { recursive: true });
+    fs.writeFileSync(
+      path.join(authoritative, "SKILL.md"),
+      '---\nname: Review\ndescription: Synthetic example\n---\nauthoritative skill',
+    );
+    fs.writeFileSync(
+      path.join(mirror, "SKILL.md"),
+      '---\nname: " review "\ndescription: Synthetic example\n---\nmirror skill',
+    );
+
+    const loaded = await loadMarkdownSkills();
+    expect(loaded.skills).toHaveLength(1);
+    expect(loaded.skills[0].content).toContain("authoritative skill");
+
+    const { skillsTool } = await import("../tools/skills.js");
+    const tool = await skillsTool();
+    const result = await tool.run({ skill_name: "  rEvIeW  " });
+    expect(result).toContain("<skill_name>Review</skill_name>");
+    expect(result).toContain("authoritative skill");
+    expect(result).not.toContain("mirror skill");
+  });
+
   it("returns error for invalid frontmatter", async () => {
     const skillDir = path.join(tmpDir, ".continue", "skills", "bad-skill");
     fs.mkdirSync(skillDir, { recursive: true });
