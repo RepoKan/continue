@@ -252,34 +252,34 @@ export class ToolPermissionService
 
     const modePolicies = this.generateModePolicies();
 
-    let allPolicies: ToolPermissionPolicy[];
-    if (
+    // Keep a complete normal-mode policy snapshot even if startup begins in
+    // plan or auto. Switching back to normal must never produce an empty policy
+    // set or silently drop configured approval requirements.
+    const normalPolicies: ToolPermissionPolicy[] =
+      agentFileServiceState?.agentFile
+        ? this.generateAgentFilePolicies(
+            agentFileServiceState,
+            mcpServiceState,
+          )
+        : resolvePermissionPrecedence({
+            commandLineFlags: runtimeOverrides,
+            personalSettings: true,
+            useDefaults: true,
+            isHeadless: this.currentState.isHeadless,
+          });
+    // Explicit modes override normal/agent policy *only while active*.
+    const allPolicies =
       this.currentState.currentMode === "plan" ||
       this.currentState.currentMode === "auto"
-    ) {
-      // Explicit modes cannot be bypassed by an agent file.
-      allPolicies = [...modePolicies];
-    } else if (agentFileServiceState?.agentFile) {
-      allPolicies = this.generateAgentFilePolicies(
-        agentFileServiceState,
-        mcpServiceState,
-      );
-    } else {
-      // Normal mode: combine headless + mode policies with user configuration
-      const compiledPolicies = resolvePermissionPrecedence({
-        commandLineFlags: runtimeOverrides,
-        personalSettings: true, // Enable loading from ~/.continue/permissions.yaml
-        useDefaults: true,
-        isHeadless: this.currentState.isHeadless,
-      });
-      allPolicies = [...compiledPolicies];
-    }
+        ? [...modePolicies]
+        : [...normalPolicies];
 
     this.setState({
       permissions: { policies: allPolicies },
       currentMode: this.currentState.currentMode,
       isHeadless: this.currentState.isHeadless,
       modePolicyCount: modePolicies.length,
+      originalPolicies: { policies: [...normalPolicies] },
     });
 
     (this as any).isInitialized = true;
@@ -335,8 +335,7 @@ export class ToolPermissionService
     // Store original policies when leaving normal mode for the first time
     if (
       currentMode === "normal" &&
-      newMode !== "normal" &&
-      !this.currentState.originalPolicies
+      newMode !== "normal"
     ) {
       // Deep copy the policies array to preserve the original state
       this.setState({
