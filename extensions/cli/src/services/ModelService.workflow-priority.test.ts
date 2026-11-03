@@ -101,6 +101,49 @@ describe("ModelService agent file model prioritization", () => {
     );
   });
 
+  it("keeps the last published configuration after a rejected reload", async () => {
+    const { getModelName } = await import("../auth/workos.js");
+    vi.mocked(getModelName).mockReturnValue(null);
+    const originalAssistant = {
+      models: [
+        { provider: "openai", model: "first", name: "unique-one" },
+        { provider: "anthropic", model: "second", name: "unique-two" },
+      ],
+    } as AssistantUnrolled;
+    await modelService.initialize(originalAssistant, mockAuthConfig, undefined);
+
+    const conflictingAssistant = {
+      models: [
+        { provider: "openai", model: "third", name: "collision" },
+        { provider: "openrouter", model: "fourth", name: "collision" },
+        { provider: "anthropic", model: "fifth", name: "other" },
+      ],
+    } as AssistantUnrolled;
+    vi.mocked(getModelName).mockReturnValue("collision");
+
+    await expect(
+      modelService.reload(conflictingAssistant, mockAuthConfig, undefined),
+    ).rejects.toThrow("Ambiguous model name in configuration");
+
+    expect(modelService.getState().assistant).toBe(originalAssistant);
+    expect(modelService.getAvailableChatModels()).toEqual([
+      { provider: "openai", name: "unique-one", index: 0 },
+      { provider: "anthropic", name: "unique-two", index: 1 },
+    ]);
+    expect(modelService.isModelNameUnique(0)).toBe(true);
+    expect(modelService.isModelNameUnique(1)).toBe(true);
+    expect(modelService.isModelNameUnique(2)).toBe(false);
+
+    const switched = await modelService.switchModel(1);
+    expect(switched.assistant).toBe(originalAssistant);
+    expect(switched.model).toEqual(
+      expect.objectContaining({
+        name: "unique-two",
+        provider: "anthropic",
+      }),
+    );
+  });
+
   it("rejects duplicate model names rather than restoring the wrong provider", async () => {
     const { getModelName } = await import("../auth/workos.js");
     vi.mocked(getModelName).mockReturnValue("same-name");
