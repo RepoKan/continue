@@ -1,9 +1,14 @@
-import { expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 
 import {
   assertSafeMcpTransport,
   buildStdioMcpEnvironment,
+  fetchMcpWithoutRedirects,
 } from "./mcpTransportSecurity.js";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 test("buildStdioMcpEnvironment excludes ambient credentials", () => {
   const inherited = {
@@ -53,4 +58,23 @@ test("assertSafeMcpTransport allows HTTPS and loopback HTTP", () => {
   expect(() =>
     assertSafeMcpTransport({ url: "http://localhost.evil.invalid/mcp" }),
   ).toThrow("Remote MCP connections require HTTPS");
+});
+
+test("fetchMcpWithoutRedirects forces redirect rejection", async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(new Response(null, { status: 204 }));
+  vi.stubGlobal("fetch", fetchMock);
+
+  await fetchMcpWithoutRedirects("https://example.invalid/mcp", {
+    headers: { "X-Synthetic-Test": "safe" },
+  });
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    "https://example.invalid/mcp",
+    expect.objectContaining({
+      redirect: "error",
+      headers: { "X-Synthetic-Test": "safe" },
+    }),
+  );
 });

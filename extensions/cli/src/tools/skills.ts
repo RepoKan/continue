@@ -1,6 +1,9 @@
 import { ContinueError, ContinueErrorReason } from "core/util/errors.js";
 
-import { loadMarkdownSkills } from "../util/loadMarkdownSkills.js";
+import {
+  loadMarkdownSkills,
+  normalizeSkillName,
+} from "../util/loadMarkdownSkills.js";
 import { logger } from "../util/logger.js";
 
 import { Tool } from "./types.js";
@@ -54,7 +57,10 @@ ${skills.map((skill) => `\nname: ${skill.name}\ndescription: ${skill.description
 
       logger.debug("skill args", { args, context });
 
-      const skill = skills.find((s) => s.name === skill_name);
+      const normalizedSkillName = normalizeSkillName(skill_name);
+      const skill = skills.find(
+        (s) => normalizeSkillName(s.name) === normalizedSkillName,
+      );
       if (!skill) {
         const availableSkills = skills.map((s) => s.name).join(", ");
         throw new ContinueError(

@@ -131,6 +131,28 @@ describe("ModelService agent file model prioritization", () => {
     expect(config.createLlmApi).not.toHaveBeenCalled();
   });
 
+  it("rejects name-only persistence for duplicate selectable models", async () => {
+    const { getModelName } = await import("../auth/workos.js");
+    vi.mocked(getModelName).mockReturnValue(null);
+    const assistantWithDuplicates = {
+      models: [
+        { provider: "openai", model: "first", name: "same-name" },
+        { provider: "openrouter", model: "second", name: "same-name" },
+        { provider: "anthropic", model: "third", name: "unique-name" },
+      ],
+    } as AssistantUnrolled;
+
+    await modelService.doInitialize(
+      assistantWithDuplicates,
+      mockAuthConfig,
+      undefined,
+    );
+
+    expect(modelService.isModelNameUnique(0)).toBe(false);
+    expect(modelService.isModelNameUnique(1)).toBe(false);
+    expect(modelService.isModelNameUnique(2)).toBe(true);
+  });
+
   it("should fall back to persisted model when no agent file model is specified", async () => {
     const agentFileServiceState: AgentFileServiceState = {
       agentFile: {

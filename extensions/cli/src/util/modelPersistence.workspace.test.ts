@@ -2,7 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, expect, test } from "vitest";
+import { GlobalContext } from "core/util/GlobalContext.js";
+import { afterEach, beforeEach, expect, test } from "vitest";
 
 import {
   getCliWorkspaceSelectionKey,
@@ -10,9 +11,13 @@ import {
   persistModelName,
 } from "./modelPersistence.js";
 
-const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), "model-workspace-"));
 const savedHome = process.env.CONTINUE_GLOBAL_DIR;
-process.env.CONTINUE_GLOBAL_DIR = isolatedHome;
+let isolatedHome: string;
+
+beforeEach(() => {
+  isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), "model-workspace-"));
+  process.env.CONTINUE_GLOBAL_DIR = isolatedHome;
+});
 
 afterEach(() => {
   if (savedHome === undefined) {
@@ -46,6 +51,25 @@ test("getPersistedModelName isolates synthetic project workspaces", () => {
   expect(getPersistedModelName(privateWorkspace)).toBe(
     "private-provider-model",
   );
+});
+
+test("legacy global selection cannot silently route a new workspace", () => {
+  const workspace = path.join(isolatedHome, "new-project");
+  new GlobalContext().update("cliSelectedModel", "legacy-provider-model");
+
+  expect(() => getPersistedModelName(workspace)).toThrow(
+    "Legacy global CLI model selection requires an explicit workspace model selection",
+  );
+});
+
+test("workspace-scoped selection takes precedence over legacy global state", () => {
+  const workspace = path.join(isolatedHome, "scoped-project");
+  const globalContext = new GlobalContext();
+  globalContext.update("cliSelectedModel", "legacy-provider-model");
+
+  persistModelName("workspace-provider-model", workspace);
+
+  expect(getPersistedModelName(workspace)).toBe("workspace-provider-model");
 });
 
 test("getCliWorkspaceSelectionKey does not persist workspace path strings", () => {

@@ -91,6 +91,7 @@ export class ToolPermissionService
     }
 
     const policies: ToolPermissionPolicy[] = [];
+    const builtInToolNames = new Set(BUILT_IN_TOOL_NAMES);
     const servers = Array.from(mcpServiceState?.connections?.values() ?? []);
     for (const mcpServer of parsedTools.mcpServers) {
       const server = servers?.find(
@@ -101,8 +102,14 @@ export class ToolPermissionService
         continue;
       }
 
-      const specificTools = parsedTools.tools.filter(
+      const requestedSpecificTools = parsedTools.tools.filter(
         (t) => t.mcpServer && t.toolName && t.mcpServer === mcpServer,
+      );
+      const specificTools = requestedSpecificTools.filter(
+        (t) => !builtInToolNames.has(t.toolName!),
+      );
+      const safeServerTools = server.tools.filter(
+        (tool) => !builtInToolNames.has(tool.name),
       );
 
       // In the `tools` key of an agent is comma separated strings like
@@ -117,9 +124,9 @@ export class ToolPermissionService
       // Handle MCP first
       // If ANY mcp tools are specifically called out, only allow those ones for that mcp server
       // Otherwise the blanket allow will cover all MCP tools
-      if (specificTools.length) {
+      if (requestedSpecificTools.length) {
         const specificSet = new Set(specificTools.map((t) => t.toolName));
-        const notMentioned = server.tools.filter(
+        const notMentioned = safeServerTools.filter(
           (t) => !specificSet.has(t.name),
         );
         const allowed: ToolPermissionPolicy[] = specificTools.map((t) => ({
@@ -135,7 +142,7 @@ export class ToolPermissionService
       } else {
         // Only tools advertised by this explicitly selected MCP server.
         policies.push(
-          ...server.tools.map((t) => ({
+          ...safeServerTools.map((t) => ({
             tool: t.name,
             permission: "allow" as const,
           })),

@@ -268,6 +268,23 @@ export class ModelService
   }
 
   /**
+   * A name-only persisted selection is safe only when that name is unique.
+   */
+  isModelNameUnique(modelIndex: number): boolean {
+    const selectedModel = this.availableModels[modelIndex];
+    if (!selectedModel) {
+      return false;
+    }
+
+    const selectedName = selectedModel.name || selectedModel.model;
+    return (
+      this.availableModels.filter(
+        (model) => (model.name || model.model) === selectedName,
+      ).length === 1
+    );
+  }
+
+  /**
    * Get current model index
    */
   getCurrentModelIndex(): number {

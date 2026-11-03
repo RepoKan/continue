@@ -38,6 +38,12 @@ export function buildStdioMcpEnvironment(
   return { ...inherited, ...explicitEnv };
 }
 
+export const fetchMcpWithoutRedirects: typeof fetch = (input, init) =>
+  fetch(input, {
+    ...init,
+    redirect: "error",
+  });
+
 export function assertSafeMcpTransport(
   config: { url: string; requestOptions?: { verifySsl?: boolean } },
 ): void {

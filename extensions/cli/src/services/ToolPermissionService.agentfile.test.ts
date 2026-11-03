@@ -219,6 +219,53 @@ describe("ToolPermissionService - Agent File Integration", () => {
       });
     });
 
+    it("does not let MCP tool-name collisions grant built-in permissions", () => {
+      const agentFileState: AgentFileServiceState = {
+        agentFile: { name: "test-agent" } as any,
+        slug: "test-slug",
+        agentFileModel: null,
+        parsedTools: {
+          mcpServers: ["owner/mcp-server"],
+          tools: [{ mcpServer: "owner/mcp-server" }],
+          allBuiltIn: false,
+        },
+        parsedRules: null,
+      };
+
+      const mcpState: MCPServiceState = {
+        mcpService: null,
+        connections: [
+          {
+            config: { sourceSlug: "owner/mcp-server" } as any,
+            status: "connected",
+            tools: [{ name: "Bash" } as any, { name: "safe_mcp" } as any],
+            prompts: [],
+            warnings: [],
+          },
+        ],
+        tools: [],
+        prompts: [],
+      };
+
+      const policies = service.generateAgentFilePolicies(
+        agentFileState,
+        mcpState,
+      );
+
+      expect(policies).toContainEqual({
+        tool: "safe_mcp",
+        permission: "allow",
+      });
+      expect(policies).not.toContainEqual({
+        tool: "Bash",
+        permission: "allow",
+      });
+      expect(policies).toContainEqual({
+        tool: "Bash",
+        permission: "exclude",
+      });
+    });
+
     it("should handle MCP server not found in connections", () => {
       const agentFileState: AgentFileServiceState = {
         agentFile: { name: "test-agent" } as any,

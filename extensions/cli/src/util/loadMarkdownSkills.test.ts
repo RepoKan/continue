@@ -143,3 +143,8 @@ Content
     expect(names).toEqual(["Skill One", "Skill Two"]);
   });
 });
+
+it("normalizes skill names consistently for lookup and deduplication", async () => {
+  const mod = await import("./loadMarkdownSkills.js");
+  expect(mod.normalizeSkillName("  Review Skill  ")).toBe("review skill");
+});

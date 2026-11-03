@@ -28,6 +28,10 @@ const skillFrontmatterSchema = z.object({
 
 const SKILLS_DIR = "skills";
 
+export function normalizeSkillName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 /**get the relative path if the filePath is within the current working directory
  * otherwise return the absolute path
  */
@@ -114,7 +118,7 @@ export async function loadMarkdownSkills(): Promise<LoadSkillsResult> {
           const validatedFrontmatter =
             skillFrontmatterSchema.parse(frontmatter);
 
-          const normalizedName = validatedFrontmatter.name.trim().toLowerCase();
+          const normalizedName = normalizeSkillName(validatedFrontmatter.name);
           if (seenNames.has(normalizedName)) {
             continue;
           }

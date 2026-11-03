@@ -19,8 +19,24 @@ export function getCliWorkspaceSelectionKey(
 export function getPersistedModelName(
   workspacePath: string = process.cwd(),
 ): string | null {
-  const selections = new GlobalContext().get("cliSelectedModelsByWorkspace");
-  return selections?.[getCliWorkspaceSelectionKey(workspacePath)] ?? null;
+  const globalContext = new GlobalContext();
+  const selections = globalContext.get("cliSelectedModelsByWorkspace");
+  const workspaceKey = getCliWorkspaceSelectionKey(workspacePath);
+
+  if (
+    selections &&
+    Object.prototype.hasOwnProperty.call(selections, workspaceKey)
+  ) {
+    return selections[workspaceKey] ?? null;
+  }
+
+  if (globalContext.get("cliSelectedModel")) {
+    throw new Error(
+      "Legacy global CLI model selection requires an explicit workspace model selection before requests can be routed",
+    );
+  }
+
+  return null;
 }
 
 /** Do not overwrite the legacy global model choice or leak it to a new project. */

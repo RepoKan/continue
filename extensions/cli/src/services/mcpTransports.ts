@@ -10,6 +10,7 @@ import {
 import {
   assertSafeMcpTransport,
   buildStdioMcpEnvironment,
+  fetchMcpWithoutRedirects,
 } from "./mcpTransportSecurity.js";
 import { MCPConnectionInfo } from "./types.js";
 
@@ -26,19 +27,26 @@ export function constructSseTransport(
     }),
   };
 
+  const fetchWithHeaders: typeof fetch = (input, init) => {
+    const requestHeaders = new Headers(init?.headers);
+    new Headers(headers).forEach((value, key) => {
+      requestHeaders.set(key, value);
+    });
+
+    return fetchMcpWithoutRedirects(input, {
+      ...init,
+      headers: requestHeaders,
+    });
+  };
+
   return new SSEClientTransport(new URL(serverConfig.url), {
     eventSourceInit: {
-      fetch: (input, init) =>
-        fetch(input, {
-          ...init,
-          headers: {
-            ...init?.headers,
-            ...headers,
-          },
-        }),
+      fetch: fetchWithHeaders,
     },
+    fetch: fetchWithHeaders,
     requestInit: {
       headers,
+      redirect: "error",
     },
   });
 }
@@ -57,8 +65,10 @@ export function constructHttpTransport(
   };
 
   return new StreamableHTTPClientTransport(new URL(serverConfig.url), {
+    fetch: fetchMcpWithoutRedirects,
     requestInit: {
       headers,
+      redirect: "error",
     },
   });
 }
