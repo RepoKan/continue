@@ -140,6 +140,36 @@ describe("MCPService", () => {
       expect(Array.isArray(mcpService.getState().tools)).toBe(true);
     });
 
+    it("omits ambiguous MCP names from advertised tools", () => {
+      const firstClient = { callTool: vi.fn(), close: vi.fn() };
+      const secondClient = { callTool: vi.fn(), close: vi.fn() };
+      (mcpService as any).connections = new Map([
+        ["first-server", {
+          config: { name: "first-server" },
+          status: "connected",
+          tools: [{ name: "shared" }, { name: "first_only" }],
+          prompts: [],
+          warnings: [],
+          client: firstClient,
+        }],
+        ["second-server", {
+          config: { name: "second-server" },
+          status: "connected",
+          tools: [{ name: "shared" }, { name: "second_only" }],
+          prompts: [],
+          warnings: [],
+          client: secondClient,
+        }],
+      ]);
+
+      (mcpService as any).updateState();
+      expect(mcpService.getState().tools.map((tool) => tool.name)).toEqual([
+        "first_only",
+        "second_only",
+      ]);
+      expect(mcpService.getState().connections).toHaveLength(2);
+    });
+
     it("rejects duplicate MCP tool names across connected servers", async () => {
       const firstClient = {
         callTool: vi.fn(() => Promise.resolve({ content: [] })),
