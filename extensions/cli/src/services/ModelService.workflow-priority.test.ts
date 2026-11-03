@@ -196,6 +196,24 @@ describe("ModelService agent file model prioritization", () => {
     expect(modelService.isModelNameUnique(2)).toBe(true);
   });
 
+  it("does not persist a model without a stable nonempty name", async () => {
+    const { getModelName } = await import("../auth/workos.js");
+    vi.mocked(getModelName).mockReturnValue(null);
+    const assistant = {
+      models: [
+        { provider: "openai", model: "synthetic-first" },
+        { provider: "anthropic", model: "synthetic-second", name: "" },
+        { provider: "openrouter", model: "synthetic-third", name: "named" },
+      ],
+    } as AssistantUnrolled;
+
+    await modelService.doInitialize(assistant, mockAuthConfig, undefined);
+
+    expect(modelService.isModelNameUnique(0)).toBe(false);
+    expect(modelService.isModelNameUnique(1)).toBe(false);
+    expect(modelService.isModelNameUnique(2)).toBe(true);
+  });
+
   it("keeps models selectable when legacy persistence blocks initialization", async () => {
     const { getModelName } = await import("../auth/workos.js");
     vi.mocked(getModelName).mockImplementation(() => {
