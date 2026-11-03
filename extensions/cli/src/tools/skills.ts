@@ -57,6 +57,14 @@ ${skills.map((skill) => `\nname: ${skill.name}\ndescription: ${skill.description
 
       logger.debug("skill args", { args, context });
 
+      if (typeof skill_name !== "string") {
+        const availableSkills = skills.map((skill) => skill.name).join(", ");
+        throw new ContinueError(
+          ContinueErrorReason.SkillNotFound,
+          `Invalid skill name. Available skills: ${availableSkills || "none"}`,
+        );
+      }
+
       const normalizedSkillName = normalizeSkillName(skill_name);
       const skill = skills.find(
         (s) => normalizeSkillName(s.name) === normalizedSkillName,
