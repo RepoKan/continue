@@ -140,6 +140,92 @@ describe("MCPService", () => {
       expect(Array.isArray(mcpService.getState().tools)).toBe(true);
     });
 
+    it("rejects duplicate MCP tool names across connected servers", async () => {
+      const firstClient = {
+        callTool: vi.fn(() => Promise.resolve({ content: [] })),
+        close: vi.fn(() => Promise.resolve()),
+      };
+      const secondClient = {
+        callTool: vi.fn(() => Promise.resolve({ content: [] })),
+        close: vi.fn(() => Promise.resolve()),
+      };
+
+      (mcpService as any).connections = new Map([
+        [
+          "first-server",
+          {
+            config: { name: "first-server" },
+            status: "connected",
+            tools: [{ name: "send_message" }],
+            prompts: [],
+            warnings: [],
+            client: firstClient,
+          },
+        ],
+        [
+          "second-server",
+          {
+            config: { name: "second-server" },
+            status: "connected",
+            tools: [{ name: "send_message" }],
+            prompts: [],
+            warnings: [],
+            client: secondClient,
+          },
+        ],
+      ]);
+
+      await expect(mcpService.runTool("send_message", {})).rejects.toThrow(
+        "Tool send_message is ambiguous across MCP servers",
+      );
+      expect(firstClient.callTool).not.toHaveBeenCalled();
+      expect(secondClient.callTool).not.toHaveBeenCalled();
+    });
+
+    it("dispatches a unique MCP tool to its owning server", async () => {
+      const firstClient = {
+        callTool: vi.fn(() => Promise.resolve({ content: [] })),
+        close: vi.fn(() => Promise.resolve()),
+      };
+      const secondClient = {
+        callTool: vi.fn(() => Promise.resolve({ content: [] })),
+        close: vi.fn(() => Promise.resolve()),
+      };
+
+      (mcpService as any).connections = new Map([
+        [
+          "first-server",
+          {
+            config: { name: "first-server" },
+            status: "connected",
+            tools: [{ name: "first_only" }],
+            prompts: [],
+            warnings: [],
+            client: firstClient,
+          },
+        ],
+        [
+          "second-server",
+          {
+            config: { name: "second-server" },
+            status: "connected",
+            tools: [{ name: "second_only" }],
+            prompts: [],
+            warnings: [],
+            client: secondClient,
+          },
+        ],
+      ]);
+
+      await mcpService.runTool("second_only", { value: "synthetic" });
+
+      expect(firstClient.callTool).not.toHaveBeenCalled();
+      expect(secondClient.callTool).toHaveBeenCalledWith({
+        name: "second_only",
+        arguments: { value: "synthetic" },
+      });
+    });
+
     it("should throw error for unknown tool", async () => {
       await expect(mcpService.runTool("unknown-tool", {})).rejects.toThrow(
         "Tool unknown-tool not found",

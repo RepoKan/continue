@@ -153,6 +153,43 @@ describe("ModelService agent file model prioritization", () => {
     expect(modelService.isModelNameUnique(2)).toBe(true);
   });
 
+  it("keeps models selectable when legacy persistence blocks initialization", async () => {
+    const { getModelName } = await import("../auth/workos.js");
+    vi.mocked(getModelName).mockImplementation(() => {
+      throw new Error(
+        "Legacy global CLI model selection requires an explicit workspace model selection before requests can be routed",
+      );
+    });
+
+    const createLlmApiMock = vi.mocked(config.createLlmApi);
+    createLlmApiMock.mockImplementation(
+      (model: ModelConfig) =>
+        ({
+          provider: model.provider,
+          name: (model as any).name,
+        }) as any,
+    );
+
+    await expect(
+      modelService.doInitialize(mockAssistant, mockAuthConfig, undefined),
+    ).rejects.toThrow("Legacy global CLI model selection");
+
+    expect(modelService.getAvailableChatModels()).toEqual([
+      { provider: "anthropic", name: "claude-3-sonnet", index: 0 },
+      { provider: "openai", name: "gpt-4", index: 1 },
+      { provider: "anthropic", name: "claude-3-haiku", index: 2 },
+    ]);
+
+    await expect(modelService.switchModel(1)).resolves.toEqual(
+      expect.objectContaining({
+        model: expect.objectContaining({
+          provider: "openai",
+          name: "gpt-4",
+        }),
+      }),
+    );
+  });
+
   it("should fall back to persisted model when no agent file model is specified", async () => {
     const agentFileServiceState: AgentFileServiceState = {
       agentFile: {

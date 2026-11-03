@@ -219,6 +219,125 @@ describe("ToolPermissionService - Agent File Integration", () => {
       });
     });
 
+    it("does not auto-authorize duplicate MCP tool names across servers", () => {
+      const agentFileState: AgentFileServiceState = {
+        agentFile: { name: "test-agent" } as any,
+        slug: "test-slug",
+        agentFileModel: null,
+        parsedTools: {
+          mcpServers: ["owner/selected"],
+          tools: [{ mcpServer: "owner/selected" }],
+          allBuiltIn: false,
+        },
+        parsedRules: null,
+      };
+
+      const mcpState: MCPServiceState = {
+        mcpService: null,
+        connections: [
+          {
+            config: { sourceSlug: "owner/unselected" } as any,
+            status: "connected",
+            tools: [{ name: "send_message" } as any],
+            prompts: [],
+            warnings: [],
+          },
+          {
+            config: { sourceSlug: "owner/selected" } as any,
+            status: "connected",
+            tools: [
+              { name: "send_message" } as any,
+              { name: "selected_only" } as any,
+            ],
+            prompts: [],
+            warnings: [],
+          },
+        ],
+        tools: [],
+        prompts: [],
+      };
+
+      const policies = service.generateAgentFilePolicies(
+        agentFileState,
+        mcpState,
+      );
+
+      expect(policies).toContainEqual({
+        tool: "selected_only",
+        permission: "allow",
+      });
+      expect(policies).not.toContainEqual({
+        tool: "send_message",
+        permission: "allow",
+      });
+      expect(policies).not.toContainEqual({
+        tool: "send_message",
+        permission: "exclude",
+      });
+      expect(policies[policies.length - 1]).toEqual({
+        tool: "*",
+        permission: "ask",
+      });
+    });
+
+    it("keeps pattern-like MCP tool names out of generated policies", () => {
+      const agentFileState: AgentFileServiceState = {
+        agentFile: { name: "test-agent" } as any,
+        slug: "test-slug",
+        agentFileModel: null,
+        parsedTools: {
+          mcpServers: ["owner/mcp-server"],
+          tools: [{ mcpServer: "owner/mcp-server" }],
+          allBuiltIn: false,
+        },
+        parsedRules: null,
+      };
+
+      const mcpState: MCPServiceState = {
+        mcpService: null,
+        connections: [
+          {
+            config: { sourceSlug: "owner/mcp-server" } as any,
+            status: "connected",
+            tools: [
+              { name: "*" } as any,
+              { name: "external_?" } as any,
+              { name: "Bash(echo *)" } as any,
+              { name: "safe_mcp" } as any,
+            ],
+            prompts: [],
+            warnings: [],
+          },
+        ],
+        tools: [],
+        prompts: [],
+      };
+
+      const policies = service.generateAgentFilePolicies(
+        agentFileState,
+        mcpState,
+      );
+
+      expect(policies).toContainEqual({
+        tool: "safe_mcp",
+        permission: "allow",
+      });
+      for (const unsafeName of ["*", "external_?", "Bash(echo *)"]) {
+        expect(policies).not.toContainEqual({
+          tool: unsafeName,
+          permission: "allow",
+        });
+        expect(policies).not.toContainEqual({
+          tool: unsafeName,
+          permission: "exclude",
+        });
+      }
+      expect(policies[policies.length - 1]).toEqual({
+        tool: "*",
+        permission: "ask",
+      });
+    });
+
     it("does not let MCP tool-name collisions grant built-in permissions", () => {
       const agentFileState: AgentFileServiceState = {
         agentFile: { name: "test-agent" } as any,

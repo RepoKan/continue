@@ -166,8 +166,10 @@ export class ModelService
     name: string;
     index: number;
   }> {
-    // Get assistant from state to ensure we have the latest data
-    const { assistant } = this.getState();
+    // Initialization can fail before state is published (for example, when a
+    // legacy global model selection requires explicit workspace migration).
+    // Keep the already-loaded assistant selectable without choosing a provider.
+    const assistant = this.getState().assistant || this.assistant;
     if (!assistant || !assistant.models) {
       return [];
     }

@@ -93,8 +93,27 @@ export class ToolPermissionService
     const policies: ToolPermissionPolicy[] = [];
     const builtInToolNames = new Set(BUILT_IN_TOOL_NAMES);
     const servers = Array.from(mcpServiceState?.connections?.values() ?? []);
+    const connectedServers = servers.filter(
+      (server) => server.status === "connected",
+    );
+    const mcpToolNameCounts = new Map<string, number>();
+
+    for (const server of connectedServers) {
+      for (const toolName of new Set(server.tools.map((tool) => tool.name))) {
+        mcpToolNameCounts.set(
+          toolName,
+          (mcpToolNameCounts.get(toolName) ?? 0) + 1,
+        );
+      }
+    }
+
+    const isSafeMcpPolicyToolName = (toolName: string): boolean =>
+      !builtInToolNames.has(toolName) &&
+      !/[*?()]/.test(toolName) &&
+      mcpToolNameCounts.get(toolName) === 1;
+
     for (const mcpServer of parsedTools.mcpServers) {
-      const server = servers?.find(
+      const server = connectedServers.find(
         (s) => s.config?.sourceSlug && s.config.sourceSlug === mcpServer,
       );
       if (!server) {
@@ -105,11 +124,14 @@ export class ToolPermissionService
       const requestedSpecificTools = parsedTools.tools.filter(
         (t) => t.mcpServer && t.toolName && t.mcpServer === mcpServer,
       );
-      const specificTools = requestedSpecificTools.filter(
-        (t) => !builtInToolNames.has(t.toolName!),
+      const safeServerTools = server.tools.filter((tool) =>
+        isSafeMcpPolicyToolName(tool.name),
       );
-      const safeServerTools = server.tools.filter(
-        (tool) => !builtInToolNames.has(tool.name),
+      const safeServerToolNames = new Set(
+        safeServerTools.map((tool) => tool.name),
+      );
+      const specificTools = requestedSpecificTools.filter((tool) =>
+        safeServerToolNames.has(tool.toolName!),
       );
 
       // In the `tools` key of an agent is comma separated strings like

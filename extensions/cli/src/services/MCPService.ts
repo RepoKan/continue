@@ -181,25 +181,33 @@ export class MCPService
    * Run a tool by name
    */
   public async runTool(name: string, args: Record<string, any>) {
-    for (const connection of this.connections.values()) {
-      if (connection.status === "connected" && connection.client) {
-        const tool = connection.tools.find((t) => t.name === name);
-        if (tool) {
-          const serverName = connection.config!.name;
-          return await this.withTokenRefresh(serverName, async () => {
-            const conn = this.connections.get(serverName);
-            if (!conn?.client) {
-              throw new Error(`Client for ${serverName} not available`);
-            }
-            return await conn.client.callTool({
-              name,
-              arguments: args,
-            });
-          });
-        }
-      }
+    const matchingConnections = Array.from(this.connections.values()).filter(
+      (connection) =>
+        connection.status === "connected" &&
+        connection.client &&
+        connection.tools.some((tool) => tool.name === name),
+    );
+
+    if (matchingConnections.length > 1) {
+      throw new Error("Tool " + name + " is ambiguous across MCP servers");
     }
-    throw new Error(`Tool ${name} not found`);
+
+    const connection = matchingConnections[0];
+    if (!connection) {
+      throw new Error("Tool " + name + " not found");
+    }
+
+    const serverName = connection.config!.name;
+    return await this.withTokenRefresh(serverName, async () => {
+      const conn = this.connections.get(serverName);
+      if (!conn?.client) {
+        throw new Error("Client for " + serverName + " not available");
+      }
+      return await conn.client.callTool({
+        name,
+        arguments: args,
+      });
+    });
   }
 
   /**
