@@ -1,12 +1,12 @@
 import type { ChatHistoryItem } from "core";
 
 import { services } from "../services/index.js";
-import { serviceContainer } from "../services/ServiceContainer.js";
-import type { ToolPermissionServiceState } from "../services/ToolPermissionService.js";
-import { ModelServiceState, SERVICE_NAMES } from "../services/types.js";
+import type { ModelServiceState } from "../services/types.js";
 import { streamChatResponse } from "../stream/streamChatResponse.js";
 import { escapeEvents } from "../util/cli.js";
 import { logger } from "../util/logger.js";
+
+import { getSubagentContext, runWithSubagentContext } from "./sessionContext.js";
 
 /**
  * Options for executing a subagent
@@ -60,11 +60,6 @@ export async function executeSubAgent(
 ): Promise<SubAgentResult> {
   const { agent: subAgent, prompt, abortController, onOutputUpdate } = options;
 
-  const mainAgentPermissionsState =
-    await serviceContainer.get<ToolPermissionServiceState>(
-      SERVICE_NAMES.TOOL_PERMISSIONS,
-    );
-
   try {
     logger.debug("Starting subagent execution", {
       agent: subAgent.model?.name,
@@ -75,41 +70,8 @@ export async function executeSubAgent(
       throw new Error("Model or LLM API not available");
     }
 
-    // allow all tools for now
-    // todo: eventually we want to show the same prompt in a dialog whether asking whether that tool call is allowed or not
-
-    serviceContainer.set<ToolPermissionServiceState>(
-      SERVICE_NAMES.TOOL_PERMISSIONS,
-      {
-        ...mainAgentPermissionsState,
-        permissions: {
-          policies: [{ tool: "*", permission: "allow" }],
-        },
-      },
-    );
-
     // Build agent system message
     const systemMessage = await buildAgentSystemMessage(subAgent, services);
-
-    // Store original system message function
-    const originalGetSystemMessage = services.systemMessage?.getSystemMessage;
-
-    // Store original ChatHistoryService ready state
-    const chatHistorySvc = services.chatHistory;
-    const originalIsReady =
-      chatHistorySvc && typeof chatHistorySvc.isReady === "function"
-        ? chatHistorySvc.isReady
-        : undefined;
-
-    // Override system message for this execution
-    if (services.systemMessage) {
-      services.systemMessage.getSystemMessage = async () => systemMessage;
-    }
-
-    // Temporarily disable ChatHistoryService to prevent it from interfering with child session
-    if (chatHistorySvc && originalIsReady) {
-      chatHistorySvc.isReady = () => false;
-    }
 
     const chatHistory = [
       {
@@ -137,28 +99,38 @@ export async function executeSubAgent(
     try {
       let accumulatedOutput = "";
 
-      // Execute the chat stream with child session
-      await streamChatResponse(
-        chatHistory,
-        model,
-        llmApi,
-        abortController,
-        {
-          onContent: (content: string) => {
-            accumulatedOutput += content;
-            if (onOutputUpdate) {
-              onOutputUpdate(accumulatedOutput);
-            }
-          },
-          onToolResult: (result: string) => {
-            // todo: skip tool outputs - show tool names and params
-            accumulatedOutput += `\n\n${result}`;
-            if (onOutputUpdate) {
-              onOutputUpdate(accumulatedOutput);
-            }
-          },
-        },
-        false, // Not compacting
+      // Snapshot effective parent permissions without modifying global services.
+      const parent = getSubagentContext();
+      const permissions =
+        parent?.permissions ?? services.toolPermissions.getState().permissions;
+      const isHeadless =
+        parent?.isHeadless ?? services.toolPermissions.isHeadless();
+
+      await runWithSubagentContext(
+        { systemMessage, permissions, isHeadless },
+        () =>
+          streamChatResponse(
+            chatHistory,
+            model,
+            llmApi,
+            abortController,
+            {
+              onContent: (content: string) => {
+                accumulatedOutput += content;
+                if (onOutputUpdate) {
+                  onOutputUpdate(accumulatedOutput);
+                }
+              },
+              onToolResult: (result: string) => {
+                // todo: skip tool outputs - show tool names and params
+                accumulatedOutput += `\n\n${result}`;
+                if (onOutputUpdate) {
+                  onOutputUpdate(accumulatedOutput);
+                }
+              },
+            },
+            false, // Not compacting
+          ),
       );
 
       // The last message (mostly) contains the important output to be submitted back to the main agent
@@ -178,25 +150,7 @@ export async function executeSubAgent(
         response,
       };
     } finally {
-      if (escapeHandler) {
-        escapeEvents.removeListener("user-escape", escapeHandler);
-      }
-
-      // Restore original system message function
-      if (services.systemMessage && originalGetSystemMessage) {
-        services.systemMessage.getSystemMessage = originalGetSystemMessage;
-      }
-
-      // Restore original ChatHistoryService ready state
-      if (chatHistorySvc && originalIsReady) {
-        chatHistorySvc.isReady = originalIsReady;
-      }
-
-      // Restore original main agent tool permissions
-      serviceContainer.set<ToolPermissionServiceState>(
-        SERVICE_NAMES.TOOL_PERMISSIONS,
-        mainAgentPermissionsState,
-      );
+      escapeEvents.removeListener("user-escape", escapeHandler);
     }
   } catch (error: any) {
     logger.error("Subagent execution failed", {

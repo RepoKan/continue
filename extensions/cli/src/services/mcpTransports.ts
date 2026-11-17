@@ -1,5 +1,3 @@
-import { Agent as HttpsAgent } from "https";
-
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -9,16 +7,18 @@ import {
   StdioMcpServer,
 } from "node_modules/@continuedev/config-yaml/dist/schemas/mcp/index.js";
 
+import {
+  assertSafeMcpTransport,
+  buildStdioMcpEnvironment,
+  fetchMcpWithoutRedirects,
+} from "./mcpTransportSecurity.js";
 import { MCPConnectionInfo } from "./types.js";
 
 export function constructSseTransport(
   serverConfig: SseMcpServer,
   apiKey: string | undefined,
 ): SSEClientTransport {
-  const sseAgent =
-    serverConfig.requestOptions?.verifySsl === false
-      ? new HttpsAgent({ rejectUnauthorized: false })
-      : undefined;
+  assertSafeMcpTransport(serverConfig);
 
   const headers = {
     ...serverConfig.requestOptions?.headers,
@@ -27,21 +27,26 @@ export function constructSseTransport(
     }),
   };
 
+  const fetchWithHeaders: typeof fetch = (input, init) => {
+    const requestHeaders = new Headers(init?.headers);
+    new Headers(headers).forEach((value, key) => {
+      requestHeaders.set(key, value);
+    });
+
+    return fetchMcpWithoutRedirects(input, {
+      ...init,
+      headers: requestHeaders,
+    });
+  };
+
   return new SSEClientTransport(new URL(serverConfig.url), {
     eventSourceInit: {
-      fetch: (input, init) =>
-        fetch(input, {
-          ...init,
-          headers: {
-            ...init?.headers,
-            ...headers,
-          },
-          ...(sseAgent && { agent: sseAgent }),
-        }),
+      fetch: fetchWithHeaders,
     },
+    fetch: fetchWithHeaders,
     requestInit: {
       headers,
-      ...(sseAgent && { agent: sseAgent }),
+      redirect: "error",
     },
   });
 }
@@ -50,10 +55,7 @@ export function constructHttpTransport(
   serverConfig: HttpMcpServer,
   apiKey: string | undefined,
 ): StreamableHTTPClientTransport {
-  const streamableAgent =
-    serverConfig.requestOptions?.verifySsl === false
-      ? new HttpsAgent({ rejectUnauthorized: false })
-      : undefined;
+  assertSafeMcpTransport(serverConfig);
 
   const headers = {
     ...serverConfig.requestOptions?.headers,
@@ -63,9 +65,10 @@ export function constructHttpTransport(
   };
 
   return new StreamableHTTPClientTransport(new URL(serverConfig.url), {
+    fetch: fetchMcpWithoutRedirects,
     requestInit: {
       headers,
-      ...(streamableAgent && { agent: streamableAgent }),
+      redirect: "error",
     },
   });
 }
@@ -74,14 +77,7 @@ export function constructStdioTransport(
   serverConfig: StdioMcpServer,
   connection: MCPConnectionInfo,
 ): StdioClientTransport {
-  const env: Record<string, string> = serverConfig.env || {};
-  if (process.env) {
-    for (const [key, value] of Object.entries(process.env)) {
-      if (!(key in env) && !!value) {
-        env[key] = value;
-      }
-    }
-  }
+  const env = buildStdioMcpEnvironment(serverConfig.env);
 
   const transport = new StdioClientTransport({
     command: serverConfig.command,

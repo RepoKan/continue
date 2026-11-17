@@ -1,3 +1,4 @@
+import { getDefaultToolPolicies } from "../permissions/defaultPolicies.js";
 import { ALL_BUILT_IN_TOOLS } from "src/tools/allBuiltIns.js";
 
 import { ToolPermissionService } from "./ToolPermissionService.js";
@@ -11,7 +12,7 @@ describe("ToolPermissionService - Agent File Integration", () => {
   });
 
   describe("generateAgentFilePolicies - No parsed tools", () => {
-    it("should allow all tools when agent file is present but parsedTools is null", () => {
+    it("should require confirmation when agent file is present but parsedTools is null", () => {
       const agentFileState: AgentFileServiceState = {
         agentFile: { name: "test-agent" } as any,
         slug: "test-slug",
@@ -22,15 +23,10 @@ describe("ToolPermissionService - Agent File Integration", () => {
 
       const policies = service.generateAgentFilePolicies(agentFileState);
 
-      expect(policies).toEqual([
-        {
-          tool: "*",
-          permission: "allow",
-        },
-      ]);
+      expect(policies).toEqual(getDefaultToolPolicies());
     });
 
-    it("should allow all tools when agent file is present but parsedTools is undefined", () => {
+    it("should require confirmation when agent file is present but parsedTools is undefined", () => {
       const agentFileState: AgentFileServiceState = {
         agentFile: { name: "test-agent" } as any,
         slug: "test-slug",
@@ -41,23 +37,13 @@ describe("ToolPermissionService - Agent File Integration", () => {
 
       const policies = service.generateAgentFilePolicies(agentFileState);
 
-      expect(policies).toEqual([
-        {
-          tool: "*",
-          permission: "allow",
-        },
-      ]);
+      expect(policies).toEqual(getDefaultToolPolicies());
     });
 
-    it("should allow all tools when agentFileServiceState is undefined", () => {
+    it("should require confirmation when agentFileServiceState is undefined", () => {
       const policies = service.generateAgentFilePolicies(undefined);
 
-      expect(policies).toEqual([
-        {
-          tool: "*",
-          permission: "allow",
-        },
-      ]);
+      expect(policies).toEqual(getDefaultToolPolicies());
     });
   });
 
@@ -115,10 +101,10 @@ describe("ToolPermissionService - Agent File Integration", () => {
         permission: "exclude",
       });
 
-      // Should have wildcard allow at the end
+      // Should have wildcard ask at the end
       expect(policies[policies.length - 1]).toEqual({
         tool: "*",
-        permission: "allow",
+        permission: "ask",
       });
     });
 
@@ -161,11 +147,11 @@ describe("ToolPermissionService - Agent File Integration", () => {
         mcpState,
       );
 
-      // Since no specific tools were mentioned, MCP logic doesn't explicitly allow/exclude
-      // The wildcard allow at the end covers all MCP tools
+      // Explicit server listing grants only tools returned by that server
+      // The wildcard ask at the end covers all MCP tools
       expect(policies[policies.length - 1]).toEqual({
         tool: "*",
-        permission: "allow",
+        permission: "ask",
       });
     });
 
@@ -225,11 +211,177 @@ describe("ToolPermissionService - Agent File Integration", () => {
         permission: "exclude",
       });
 
-      // Server2: No specific tools, so wildcard covers them
-      // Should have wildcard allow at the end
+      // Server2: No specific tools, so explicit server tools cover them
+      // Should have wildcard ask at the end
       expect(policies[policies.length - 1]).toEqual({
         tool: "*",
+        permission: "ask",
+      });
+    });
+
+    it("does not auto-authorize duplicate MCP tool names across servers", () => {
+      const agentFileState: AgentFileServiceState = {
+        agentFile: { name: "test-agent" } as any,
+        slug: "test-slug",
+        agentFileModel: null,
+        parsedTools: {
+          mcpServers: ["owner/selected"],
+          tools: [{ mcpServer: "owner/selected" }],
+          allBuiltIn: false,
+        },
+        parsedRules: null,
+      };
+
+      const mcpState: MCPServiceState = {
+        mcpService: null,
+        connections: [
+          {
+            config: { sourceSlug: "owner/unselected" } as any,
+            status: "connected",
+            tools: [{ name: "send_message" } as any],
+            prompts: [],
+            warnings: [],
+          },
+          {
+            config: { sourceSlug: "owner/selected" } as any,
+            status: "connected",
+            tools: [
+              { name: "send_message" } as any,
+              { name: "selected_only" } as any,
+            ],
+            prompts: [],
+            warnings: [],
+          },
+        ],
+        tools: [],
+        prompts: [],
+      };
+
+      const policies = service.generateAgentFilePolicies(
+        agentFileState,
+        mcpState,
+      );
+
+      expect(policies).toContainEqual({
+        tool: "selected_only",
         permission: "allow",
+      });
+      expect(policies).not.toContainEqual({
+        tool: "send_message",
+        permission: "allow",
+      });
+      expect(policies).not.toContainEqual({
+        tool: "send_message",
+        permission: "exclude",
+      });
+      expect(policies[policies.length - 1]).toEqual({
+        tool: "*",
+        permission: "ask",
+      });
+    });
+
+    it("keeps pattern-like MCP tool names out of generated policies", () => {
+      const agentFileState: AgentFileServiceState = {
+        agentFile: { name: "test-agent" } as any,
+        slug: "test-slug",
+        agentFileModel: null,
+        parsedTools: {
+          mcpServers: ["owner/mcp-server"],
+          tools: [{ mcpServer: "owner/mcp-server" }],
+          allBuiltIn: false,
+        },
+        parsedRules: null,
+      };
+
+      const mcpState: MCPServiceState = {
+        mcpService: null,
+        connections: [
+          {
+            config: { sourceSlug: "owner/mcp-server" } as any,
+            status: "connected",
+            tools: [
+              { name: "*" } as any,
+              { name: "external_?" } as any,
+              { name: "Bash(echo *)" } as any,
+              { name: "safe_mcp" } as any,
+            ],
+            prompts: [],
+            warnings: [],
+          },
+        ],
+        tools: [],
+        prompts: [],
+      };
+
+      const policies = service.generateAgentFilePolicies(
+        agentFileState,
+        mcpState,
+      );
+
+      expect(policies).toContainEqual({
+        tool: "safe_mcp",
+        permission: "allow",
+      });
+      for (const unsafeName of ["*", "external_?", "Bash(echo *)"]) {
+        expect(policies).not.toContainEqual({
+          tool: unsafeName,
+          permission: "allow",
+        });
+        expect(policies).not.toContainEqual({
+          tool: unsafeName,
+          permission: "exclude",
+        });
+      }
+      expect(policies[policies.length - 1]).toEqual({
+        tool: "*",
+        permission: "ask",
+      });
+    });
+
+    it("does not let MCP tool-name collisions grant built-in permissions", () => {
+      const agentFileState: AgentFileServiceState = {
+        agentFile: { name: "test-agent" } as any,
+        slug: "test-slug",
+        agentFileModel: null,
+        parsedTools: {
+          mcpServers: ["owner/mcp-server"],
+          tools: [{ mcpServer: "owner/mcp-server" }],
+          allBuiltIn: false,
+        },
+        parsedRules: null,
+      };
+
+      const mcpState: MCPServiceState = {
+        mcpService: null,
+        connections: [
+          {
+            config: { sourceSlug: "owner/mcp-server" } as any,
+            status: "connected",
+            tools: [{ name: "Bash" } as any, { name: "safe_mcp" } as any],
+            prompts: [],
+            warnings: [],
+          },
+        ],
+        tools: [],
+        prompts: [],
+      };
+
+      const policies = service.generateAgentFilePolicies(
+        agentFileState,
+        mcpState,
+      );
+
+      expect(policies).toContainEqual({
+        tool: "safe_mcp",
+        permission: "allow",
+      });
+      expect(policies).not.toContainEqual({
+        tool: "Bash",
+        permission: "allow",
+      });
+      expect(policies).toContainEqual({
+        tool: "Bash",
+        permission: "exclude",
       });
     });
 
@@ -260,10 +412,10 @@ describe("ToolPermissionService - Agent File Integration", () => {
         mcpState,
       );
 
-      // Should still have wildcard allow at the end
+      // Should still have wildcard ask at the end
       expect(policies[policies.length - 1]).toEqual({
         tool: "*",
-        permission: "allow",
+        permission: "ask",
       });
     });
   });
@@ -307,10 +459,10 @@ describe("ToolPermissionService - Agent File Integration", () => {
         });
       }
 
-      // Should have wildcard allow at the end
+      // Should have wildcard ask at the end
       expect(policies[policies.length - 1]).toEqual({
         tool: "*",
-        permission: "allow",
+        permission: "ask",
       });
     });
 
@@ -335,10 +487,10 @@ describe("ToolPermissionService - Agent File Integration", () => {
       );
       expect(excludePolicies).toEqual([]);
 
-      // Should have wildcard allow at the end
+      // Should have wildcard ask at the end
       expect(policies[policies.length - 1]).toEqual({
         tool: "*",
-        permission: "allow",
+        permission: "ask",
       });
     });
 
@@ -384,10 +536,10 @@ describe("ToolPermissionService - Agent File Integration", () => {
         });
       }
 
-      // Should have wildcard allow at the end
+      // Should have wildcard ask at the end
       expect(policies[policies.length - 1]).toEqual({
         tool: "*",
-        permission: "allow",
+        permission: "ask",
       });
     });
 
@@ -466,10 +618,10 @@ describe("ToolPermissionService - Agent File Integration", () => {
         });
       }
 
-      // Should have wildcard allow at the end
+      // Should have wildcard ask at the end
       expect(policies[policies.length - 1]).toEqual({
         tool: "*",
-        permission: "allow",
+        permission: "ask",
       });
     });
   });
@@ -486,13 +638,8 @@ describe("ToolPermissionService - Agent File Integration", () => {
 
       const state = service.initializeSync(undefined, agentFileState);
 
-      // Should have wildcard allow policy
-      expect(state.permissions.policies).toEqual([
-        {
-          tool: "*",
-          permission: "allow",
-        },
-      ]);
+      // Should have wildcard confirmation policy
+      expect(state.permissions.policies).toEqual(getDefaultToolPolicies());
     });
 
     it("should use agent file policies when agent file is present with parsed tools", () => {
@@ -527,25 +674,25 @@ describe("ToolPermissionService - Agent File Integration", () => {
         });
       }
 
-      // Should have wildcard allow at the end
+      // Should have wildcard ask at the end
       const lastPolicy =
         state.permissions.policies[state.permissions.policies.length - 1];
       expect(lastPolicy).toEqual({
         tool: "*",
-        permission: "allow",
+        permission: "ask",
       });
     });
 
     it("should use normal resolution when agent file is not present", () => {
       const state = service.initializeSync(undefined, undefined);
 
-      // Should have normal policies (not just wildcard allow)
+      // Should have normal policies (not just wildcard confirmation)
       expect(state.permissions.policies.length).toBeGreaterThan(1);
-      // Should not be just wildcard allow
+      // Should not be just wildcard confirmation
       expect(state.permissions.policies).not.toEqual([
         {
           tool: "*",
-          permission: "allow",
+          permission: "ask",
         },
       ]);
     });
@@ -589,7 +736,7 @@ describe("ToolPermissionService - Agent File Integration", () => {
   });
 
   describe("Edge cases and boundary conditions", () => {
-    it("should handle empty parsed tools arrays - allows everything", () => {
+    it("should handle empty parsed tools arrays - requires confirmation", () => {
       const agentFileState: AgentFileServiceState = {
         agentFile: { name: "test-agent" } as any,
         slug: "test-slug",
@@ -604,15 +751,8 @@ describe("ToolPermissionService - Agent File Integration", () => {
 
       const policies = service.generateAgentFilePolicies(agentFileState);
 
-      // With empty tools array and no MCP servers, the logic doesn't enter
-      // the exclusion path, so it just returns wildcard allow
-      // This is the "blank = all built-in tools" case from the comments
-      expect(policies).toEqual([
-        {
-          tool: "*",
-          permission: "allow",
-        },
-      ]);
+      // Empty tool lists now preserve the normal permission defaults.
+      expect(policies).toEqual(getDefaultToolPolicies());
     });
 
     it("should handle MCP state with empty connections array", () => {
@@ -640,10 +780,10 @@ describe("ToolPermissionService - Agent File Integration", () => {
         mcpState,
       );
 
-      // Should still generate policies and have wildcard allow
+      // Should still generate policies and have wildcard confirmation
       expect(policies[policies.length - 1]).toEqual({
         tool: "*",
-        permission: "allow",
+        permission: "ask",
       });
     });
 
@@ -665,10 +805,10 @@ describe("ToolPermissionService - Agent File Integration", () => {
         undefined,
       );
 
-      // Should still generate policies and have wildcard allow
+      // Should still generate policies and have wildcard confirmation
       expect(policies[policies.length - 1]).toEqual({
         tool: "*",
-        permission: "allow",
+        permission: "ask",
       });
     });
   });

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SystemMessageService } from "./SystemMessageService.js";
+import { runWithSubagentContext } from "../subagent/sessionContext.js";
 
 import { services } from "./index.js";
 const toolPermissionService = services.toolPermissions;
@@ -142,4 +143,20 @@ describe("SystemMessageService", () => {
       );
     });
   });
+});
+
+it("getSystemMessage provides per-child messages without modifying parent service", async () => {
+  const system = new SystemMessageService();
+  const observed = await Promise.all(
+    ["SYSTEM-A", "SYSTEM-B"].map((systemMessage) =>
+      runWithSubagentContext(
+        { systemMessage, isHeadless: false, permissions: { policies: [] } },
+        async () => {
+          await Promise.resolve();
+          return system.getSystemMessage("normal");
+        },
+      ),
+    ),
+  );
+  expect(observed).toEqual(["SYSTEM-A", "SYSTEM-B"]);
 });
