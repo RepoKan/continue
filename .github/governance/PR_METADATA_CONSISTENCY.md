@@ -15,6 +15,7 @@ Limits: no GitHub policy can prevent all authorized body/workflow edits. This ch
 Validation: 17 synthetic regression cases passed on the actual inline validator source (hold/draft, ready, stale/missing/malformed/duplicate contracts, opt-in scope and closed PR handling). Python compilation passed. Hosted Actions and required-check enforcement remain NOT RUN until activation.
 
 ## Enforced merge status
+
 The workflow posts `PR metadata / merge gate` on the live PR head SHA, not the default-branch workflow SHA. Draft or HOLD always posts failure. Validation starts pending and re-fetches metadata before publishing a result; changed snapshots fail. Protect main and any stacked base with this exact status emitted by GitHub Actions. Do not count the default-branch workflow check as PR-head enforcement. Unknown live PR state is rejected.
 
 The workflow now runs 17 embedded consistency regression cases before any live API action. Seven additional mocked publisher scenarios validated head binding and failure behavior during preparation. The trusted pull_request_target context is intentional: only default-branch inline code executes, no PR checkout, no untrusted expression interpolation, no external action or secret is used. A trigger-only scanner warning does not establish an exploitable checkout path; retain the no-checkout boundary.
