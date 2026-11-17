@@ -10,7 +10,6 @@ metadata:
 > NOTE: This skill is a fork/local addition in this repository, not part of the upstream
 > `continuedev/continue` documentation/spec snapshot.
 
-
 # cn check — Local AI Agent Checks
 
 Run AI-powered code checks locally against your working tree changes using the Continue CLI. Each check is an agent (defined in markdown) that reviews your diff, identifies issues, and optionally suggests fixes as a patch.
