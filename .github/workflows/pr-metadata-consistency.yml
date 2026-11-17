@@ -1,0 +1,85 @@
+name: PR metadata consistency
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize, ready_for_review, converted_to_draft]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR number to reconcile against live GitHub metadata
+        required: true
+        type: string
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  group: pr-metadata-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+jobs:
+  metadata:
+    name: PR metadata consistency
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Validate live state without checking out PR code
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GOVERNED_PR: '17'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, re
+
+          def unique_object(pairs):
+              result = {}
+              for key, value in pairs:
+                  if key in result:
+                      raise ValueError("duplicate contract key")
+                  result[key] = value
+              return result
+
+          def validate(pr, governed):
+              body = pr.get("body") or ""
+              marker = "pr-state-contract:"
+              if pr.get("state") != "open":
+                  return "closed PR; no open lifecycle to validate"
+              if marker not in body and not governed:
+                  return "outside opt-in scope"
+              matches = re.findall(r"<!--\s*pr-state-contract:\s*(.*?)\s*-->", body, re.S)
+              if len(matches) != 1 or body.count(marker) != 1:
+                  raise ValueError("exactly one state contract is required")
+              contract = json.loads(matches[0], object_pairs_hook=unique_object)
+              keys = {"schema", "gate", "required_draft", "recorded_head_sha"}
+              if not isinstance(contract, dict) or set(contract) != keys:
+                  raise ValueError("invalid contract fields")
+              if type(contract["schema"]) is not int or contract["schema"] != 1:
+                  raise ValueError("unsupported schema")
+              if contract["gate"] not in ("HOLD", "READY"):
+                  raise ValueError("invalid decision gate")
+              if type(contract["required_draft"]) is not bool or type(pr.get("draft")) is not bool:
+                  raise ValueError("draft fields must be booleans")
+              if contract["required_draft"] != (contract["gate"] == "HOLD"):
+                  raise ValueError("decision gate contradicts required draft state")
+              if pr["draft"] != contract["required_draft"]:
+                  raise ValueError("live GitHub draft state contradicts contract")
+              sha = contract["recorded_head_sha"]
+              if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+                  raise ValueError("invalid recorded head SHA")
+              if sha != pr.get("head", {}).get("sha"):
+                  raise ValueError("recorded SHA is stale; reconcile evidence for live head")
+              return "metadata consistent; independent merge gates still apply"
+          import os, urllib.request
+          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as stream:
+              event = json.load(stream)
+          number = event.get("number") or (event.get("inputs") or {}).get("pr_number")
+          if not str(number).isdigit() or int(number) < 1:
+              raise SystemExit("valid PR number required")
+          repo = os.environ["GITHUB_REPOSITORY"]
+          url = os.environ["GITHUB_API_URL"] + "/repos/" + repo + "/pulls/" + str(int(number))
+          request = urllib.request.Request(url, headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"], "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              pr = json.load(response)
+          try:
+              print(validate(pr, int(number) == int(os.environ["GOVERNED_PR"])))
+          except (ValueError, TypeError) as error:
+              raise SystemExit("PR metadata gate failed: " + str(error))
+          PY
