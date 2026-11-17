@@ -6,13 +6,27 @@ This baseline was inspected at commit `5522c6f44ca0ac3528b37244818fbfa39b5af470`
 - Canonical URL: `https://github.com/RepoKan/continue`
 - Default branch: `main`
 
-## Source-of-truth order
+## Authority and evidence
 
-1. Current code and tests
-2. Package and build configuration
-3. `.continue/rules/` and applicable `AGENTS.md`
-4. Maintained documentation
-5. `TESTING.md`, which records a completed historical regression checklist and is not a substitute for rerunning tests
+### Normative authority
+
+1. Host/platform requirements and applicable law.
+2. Mandatory security, privacy, and domain-safety obligations imposed by their governing authority.
+3. The effective `.continue/rules/engineering-governance.md` and applicable repository/domain rules. GOV-001 scopes this policy to `RepoKan/continue`; GOV-023 requires evidence that a conditional rule is active.
+4. Task-specific user instructions and authorization, within higher-level constraints and effective policy.
+5. Local implementation and documentation preferences.
+
+For authority conflicts or same-level contradictions, follow GOV-002 and hold the affected decision until the conflict is resolved.
+
+### Evidence about observed behavior
+
+1. Current source and tests at the exact revision.
+2. Package, build, and runtime configuration.
+3. CI logs, browser/backend observations, and production evidence for the specific claim.
+4. Maintained documentation, with its revision/date.
+5. `TESTING.md` records historical regression results; it does not prove current behavior.
+
+Observed behavior does not establish intended contract. Compare it with approved specifications and decisions, and report mismatches instead of treating code or a green test as permission to override the contract.
 
 ## Major areas
 
@@ -57,6 +71,7 @@ Relevant implementation:
 - `extensions/cli/src/tools/skills.ts`
 - `extensions/cli/src/slashCommands.ts`
 - `.github/workflows/claude-skill-mirror-validation.yml`
+- `.github/workflows/project-skill-package-validation.yml`
 
 ## Fork invariants
 
@@ -81,3 +96,4 @@ The root `package.json` and lockfile declare `@ai-sdk/deepseek`, while the provi
 ## Sensitive configuration
 
 `BUILD_DEPENDENCIES.md` lists environment-variable and secret names for publishing, providers, CI, signing, and integration tests. It does not contain usable secret values. Never print values sourced from `.env`, the environment, CI settings, or local credentials.
+

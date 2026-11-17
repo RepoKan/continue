@@ -1,9 +1,9 @@
 ---
 name: Anti-slop
-description: Fix AI Slop
+description: Review AI-generated code patterns
 ---
 
-I want to follow the **Anti AI-slop rule**: clean up any AI-generated code patterns that harm readability and maintainability. Please look around at the files that were changed. If there are any with "AI slop" patterns, make targeted changes to clean them up. Stick to a single file maximum. If no changes are necessary, then do nothing.
+Review only the changed code for concrete patterns that harm readability or maintainability. Follow GOV-003, GOV-004, GOV-008, GOV-009, and GOV-016 in `.continue/rules/engineering-governance.md`. This check is findings-only: report the path, concrete cost, and smallest correction; do not edit files, commit, push, or change the PR. Implementation requires a separate authorized task. If no material issue exists, state the scope reviewed.
 
 **What qualifies as AI slop in code:**
 

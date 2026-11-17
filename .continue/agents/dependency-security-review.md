@@ -5,7 +5,7 @@ description: Review dependency changes for security implications and breaking ch
 
 # Dependency Security Review
 
-Review this pull request for changes to dependencies. A significant portion of PRs in this repo are automated dependency bumps (Dependabot, Snyk). This check ensures dependency changes get meaningful review.
+Review this pull request for dependency changes. Follow GOV-006, GOV-010, GOV-015, and GOV-016 in `.continue/rules/engineering-governance.md`. A significant portion of PRs in this repo are automated dependency bumps (Dependabot, Snyk); assess the candidate and its target-base security delta.
 
 ## What to Check
 
@@ -41,8 +41,8 @@ Review this pull request for changes to dependencies. A significant portion of P
 
 3. **Post-install scripts** - Dependencies with `postinstall` scripts can execute arbitrary code during `npm install`.
 
-## What to Do
+## Review Output
 
-- If you find concerning dependency changes, add a comment explaining the concern.
-- Do NOT modify `package.json` or `package-lock.json` files directly.
-- If no dependency files were changed in this PR, do nothing.
+- Findings-only: do not edit manifests/lockfiles, comment on the PR, commit, push, or merge.
+- For each concern, identify the package/version, affected path, evidence, baseline/new status, impact, and focused mitigation.
+- If dependency files were not changed and no relevant dependency behavior is implicated, report `NOT APPLICABLE` for this check.

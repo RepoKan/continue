@@ -42,15 +42,15 @@ export async function loadMarkdownRules(ide: IDE): Promise<{
             alwaysApply: true,
           });
           agentFileFound = true;
+          break; // Use the first existing agent file in this workspace
         }
-
-        break; // Use the first found agent file in this workspace
+        // A missing file is not a reason to skip the remaining supported names.
       } catch (e) {
-        // File doesn't exist or can't be read, continue to next file
+        // A missing or unreadable file may be followed by another supported name.
       }
     }
     if (agentFileFound) {
-      break; // Use agent file from first workspace that has one
+      break; // Use an agent file from the first workspace that has one
     }
   }
 

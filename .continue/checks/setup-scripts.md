@@ -1,9 +1,9 @@
 ---
 name: Setup Scripts
-description: Update Setup Scripts if needed
+description: Review setup-script impact
 ---
 
-If there are any changes in this pull request that would require changes to any setup scripts in this repository, please make the requisite updates. This would include things like new package management systems, new moving parts of the build process, or an updated local development environment. If the PR only includes "content" (docs, source code, etc.) changes, then you can basically immediately disqualify it as not requiring updates to setup scripts.
+Review whether the pull request changes setup or build prerequisites, such as package managers, build steps, or the local development environment. Follow GOV-004, GOV-007, GOV-008, GOV-009, and GOV-016 in `.continue/rules/engineering-governance.md`. Report the affected setup scripts and proposed changes with evidence; do not edit files, commit, push, or change the PR during review. Do not mark a change out of scope solely because its file type is documentation or source code; assess its effect on setup behavior. Implement only when the user explicitly requests and authorizes the change.
 
 The most relevant setup scripts (all in the scripts/ folder) are:
 

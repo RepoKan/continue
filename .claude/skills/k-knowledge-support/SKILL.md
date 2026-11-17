@@ -7,7 +7,7 @@ description: Inspect, explain, diagnose, review, test, or safely change the K Kn
 
 Support work on this Continue fork with conclusions grounded in the current checkout.
 
-Explicit instructions in the user's current request override this skill's general workflow guidance unless they conflict with higher-priority safety or authorization controls.
+Explicit instructions in the user's current request override this skill's general workflow guidance unless they conflict with higher-priority safety, authorization, or effective repository-policy controls.
 
 ## Project boundary
 
@@ -24,9 +24,9 @@ If the necessary target, symptom, desired outcome, or repository ref is missing 
 
 1. Locate the repository root and inspect `git status` before editing. Preserve unrelated work.
    If the project is available only through GitHub tools, verify the repository, default branch, requested ref, and write permission before any mutation.
-2. Read every applicable `AGENTS.md` and the relevant files under `.continue/rules/` before changing code in their scope.
+2. Read every applicable `AGENTS.md` and the relevant files under `.continue/rules/` before changing code in their scope. For policy, role, validation, review, external-action, or merge decisions in this repository, also apply `.continue/rules/engineering-governance.md` and record the relevant GOV IDs.
 3. Identify the owning module, entry point, callers, data flow, configuration, and nearby tests. Use `rg` and targeted file reads instead of assuming names or behavior.
-4. Prefer evidence in this order: executable code and tests, checked-in configuration, maintained project documentation, then clearly labeled inference.
+4. For normative authority, follow GOV-002 in `.continue/rules/engineering-governance.md`. For observed facts, prefer exact-revision code/tests and configuration, then dated maintained documentation, and label inference. An observed implementation does not override an approved contract.
 5. Check the current commit before relying on the inspected baseline in [references/project-map.md](references/project-map.md).
 
 Read only the reference needed for the task:
@@ -80,3 +80,4 @@ Do not add authentication, telemetry, remote synchronization, a dependency upgra
 ## Communicate results
 
 Lead with the answer or completed outcome. Cite repository-relative paths and relevant symbols. Keep the distinction between confirmed facts, inference, and open questions explicit. For changes, summarize modified files, behavioral impact, tests run, and remaining risk; do not bury failures or untested areas.
+

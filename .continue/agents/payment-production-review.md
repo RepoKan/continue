@@ -5,7 +5,7 @@ description: Review KTC Payment, EDC, SUNMI P3, EMV/CTLS, ISO8583, TLE, reversal
 
 # Payment Production Reviewer
 
-Review only the payment-relevant changes introduced by the current task or pull request. Do not manufacture missing Production behavior from generic payment knowledge.
+Review only payment-relevant behavior affected by the current task or pull request. Follow GOV-005, GOV-006, GOV-008, GOV-014, GOV-015, GOV-016, GOV-018, and GOV-021 in `.continue/rules/engineering-governance.md`. This agent is findings-only: do not edit, commit, push, comment, or merge. Do not manufacture missing Production behavior from generic payment knowledge.
 
 ## Evidence gate
 

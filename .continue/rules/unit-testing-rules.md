@@ -4,34 +4,34 @@ description: Guidelines for unit testing in this project
 alwaysApply: false
 ---
 
-For unit testing in this project:
+For testing decisions, follow GOV-007 and GOV-011 in `.continue/rules/engineering-governance.md`. This file records project-specific test conventions only; it does not independently waive tests or define merge readiness.
 
-## 1. Testing frameworks
+## Testing frameworks
 
-The project uses Vitest and Jest for testing. Prefer Vitest.
+The project uses Vitest and Jest. Use the framework selected by the owning package's scripts and configuration. Do not introduce a repository-wide framework preference that conflicts with a package's established setup.
 
-## 2. Test execution location
+## Test execution location
 
 Run tests from within the specific package directory (e.g., `cd core && ..`).
 
-## 3. Vitest tests
+## Local test discovery examples
 
-- Test files follow the pattern `*.vitest.ts`
-- Run tests using `vitest` from within the specific package/module directory:
+- Core includes Vitest files named `*.vitest.ts`; GUI and CLI also use Vitest files named `*.test.ts`. These are local examples, not universal discovery rules. Check the package config before adding or running a test.
+- Run tests using the package's configured command from its owning directory:
   ```bash
-  cd [directory] && vitest -- [test file path]
+  cd [package] && npm run [configured-test-script] -- [test file]
   ```
 
-## 4. Jest tests
+## Jest tests
 
-- Test files follow the pattern `*.test.ts`
-- Run tests using `npm test` from within the specific package/module directory:
+- Core uses Jest for files selected by its Jest configuration, including `*.test.ts`.
+- Run tests using the package's configured Jest command:
   ```bash
-  cd [directory] && npm test -- [test file path]
+  cd core && npm test -- [test file]
   ```
 - The test script uses experimental VM modules via NODE_OPTIONS flag
 
-## 5. Test structure
+## Test structure
 
-- Write tests as top-level `test()` functions - DO NOT use `describe()` blocks
-- Include the function name being tested in the test description for clarity
+- Follow the neighboring tests and the owning framework's conventions for `test()` and `describe()` blocks.
+- Name tests for the behavior and boundary they verify.
