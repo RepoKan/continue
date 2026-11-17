@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  statuses: write
 concurrency:
   group: pr-metadata-${{ github.event.pull_request.number || inputs.pr_number }}
   cancel-in-progress: true
@@ -40,7 +41,9 @@ jobs:
           def validate(pr, governed):
               body = pr.get("body") or ""
               marker = "pr-state-contract:"
-              if pr.get("state") != "open":
+              if pr.get("state") not in ("open", "closed"):
+                  raise ValueError("invalid live PR state")
+              if pr["state"] == "closed":
                   return "closed PR; no open lifecycle to validate"
               if marker not in body and not governed:
                   return "outside opt-in scope"
@@ -71,15 +74,38 @@ jobs:
           with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as stream:
               event = json.load(stream)
           number = event.get("number") or (event.get("inputs") or {}).get("pr_number")
-          if not str(number).isdigit() or int(number) < 1:
+          if not str(number).isascii() or not str(number).isdigit() or int(number) < 1:
               raise SystemExit("valid PR number required")
           repo = os.environ["GITHUB_REPOSITORY"]
-          url = os.environ["GITHUB_API_URL"] + "/repos/" + repo + "/pulls/" + str(int(number))
-          request = urllib.request.Request(url, headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"], "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"})
-          with urllib.request.urlopen(request, timeout=30) as response:
-              pr = json.load(response)
+          api = os.environ["GITHUB_API_URL"] + "/repos/" + repo
+          headers = {"Authorization": "Bearer " + os.environ["GH_TOKEN"], "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+          def request(path, payload=None):
+              data = None if payload is None else json.dumps(payload).encode()
+              req = urllib.request.Request(api + path, data=data, headers=headers)
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+          path = "/pulls/" + str(int(number))
+          pr = request(path)
+          sha = pr["head"]["sha"]
+          if not re.fullmatch(r"[0-9a-f]{40}", sha):
+              raise SystemExit("invalid live head SHA")
+          run_url = os.environ["GITHUB_SERVER_URL"] + "/" + repo + "/actions/runs/" + os.environ["GITHUB_RUN_ID"]
+          def publish(state, description):
+              request("/statuses/" + sha, {"state": state, "context": "PR metadata / merge gate", "description": description[:140], "target_url": run_url})
+          publish("pending", "Checking live PR metadata and decision gate")
           try:
-              print(validate(pr, int(number) == int(os.environ["GOVERNED_PR"])))
-          except (ValueError, TypeError) as error:
+              result = validate(pr, int(number) == int(os.environ["GOVERNED_PR"]))
+              latest = request(path)
+              if any(latest.get(k) != pr.get(k) for k in ("body", "draft", "head", "state", "updated_at")):
+                  raise ValueError("PR changed during validation; rerun required")
+              matches = re.findall(r"<!--\s*pr-state-contract:\s*(.*?)\s*-->", pr.get("body") or "", re.S)
+              hold = bool(matches) and json.loads(matches[0])["gate"] == "HOLD"
+              if pr.get("draft") or hold:
+                  publish("failure", "HOLD or Draft: merge is not authorized by this gate")
+                  raise SystemExit("Metadata consistent, but HOLD/Draft intentionally blocks merge")
+              publish("success", result)
+              print(result)
+          except (ValueError, TypeError, KeyError) as error:
+              publish("failure", "Invalid, conflicting or stale PR state contract")
               raise SystemExit("PR metadata gate failed: " + str(error))
           PY
