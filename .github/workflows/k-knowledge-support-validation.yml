@@ -8,7 +8,8 @@ on:
       - ".continue/agents/payment-production-review.md"
       - ".continue/checks/payment-*.md"
       - ".continue/rules/payment-production-governance.md"
-      - ".continue/skills/k-knowledge-support/**"
+      - ".continue/skills/**"
+      - ".claude/skills/**"
       - "plugins/k-knowledge-support/**"
       - ".github/workflows/k-knowledge-support-validation.yml"
   push:
@@ -21,7 +22,8 @@ on:
       - ".continue/agents/payment-production-review.md"
       - ".continue/checks/payment-*.md"
       - ".continue/rules/payment-production-governance.md"
-      - ".continue/skills/k-knowledge-support/**"
+      - ".continue/skills/**"
+      - ".claude/skills/**"
       - "plugins/k-knowledge-support/**"
       - ".github/workflows/k-knowledge-support-validation.yml"
   workflow_dispatch:
@@ -89,6 +91,32 @@ jobs:
               if not path.is_file():
                   die(f'missing {path.relative_to(root)}')
               return path.read_text(encoding='utf-8')
+
+          source_skills_root = root / '.continue/skills'
+          plugin_skills_root = plugin_root / 'skills'
+          source_skill_names = sorted(
+              path.name
+              for path in source_skills_root.iterdir()
+              if path.is_dir() and (path / 'SKILL.md').is_file()
+          )
+          if not source_skill_names:
+              die('no project-owned skills found under .continue/skills')
+
+          for skill_name in source_skill_names:
+              source_dir = source_skills_root / skill_name
+              packaged_dir = plugin_skills_root / skill_name
+              if not (packaged_dir / 'SKILL.md').is_file():
+                  die(f'missing packaged skill: {skill_name}')
+              source_files = sorted(
+                  path.relative_to(source_dir).as_posix()
+                  for path in source_dir.rglob('*')
+                  if path.is_file()
+              )
+              for rel in source_files:
+                  if read(source_dir / rel) != read(packaged_dir / rel):
+                      die(f'packaged skill differs: {skill_name}/{rel}')
+              read(packaged_dir / 'agents/openai.yaml')
+              print(f'VALID: packaged {skill_name} ({len(source_files)} source files)')
 
           for rel in required_common:
               left = continue_skill / rel

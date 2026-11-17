@@ -5,6 +5,7 @@ on:
     paths:
       - ".continue/skills/**"
       - ".claude/skills/**"
+      - "plugins/k-knowledge-support/skills/**"
       - ".github/workflows/claude-skill-mirror-validation.yml"
   push:
     branches:
@@ -13,6 +14,7 @@ on:
     paths:
       - ".continue/skills/**"
       - ".claude/skills/**"
+      - "plugins/k-knowledge-support/skills/**"
       - ".github/workflows/claude-skill-mirror-validation.yml"
   workflow_dispatch:
 

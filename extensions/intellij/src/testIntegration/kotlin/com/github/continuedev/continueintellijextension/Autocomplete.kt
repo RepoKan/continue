@@ -2,7 +2,6 @@ package com.github.continuedev.continueintellijextension
 
 import com.automation.remarks.junit5.Video
 import com.intellij.driver.sdk.ui.components.*
-import com.intellij.driver.sdk.ui.components.elements.waitForNoOpenedDialogs
 import com.intellij.driver.sdk.wait
 import com.intellij.driver.sdk.waitForIndicators
 import com.intellij.ide.starter.driver.engine.runIdeWithDriver
@@ -11,8 +10,8 @@ import com.intellij.ide.starter.models.TestCase
 import com.intellij.ide.starter.plugins.PluginConfigurator
 import com.intellij.ide.starter.project.NoProject
 import com.intellij.ide.starter.runner.Starter
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import java.awt.event.KeyEvent
 import java.io.File
 import kotlin.time.Duration.Companion.minutes
@@ -55,23 +54,123 @@ class Autocomplete {
                         space()
                     }
 
-                    // Trigger autocomplete with longer wait for plugin initialization
-                    wait(3.seconds)
-                    keyboard {
-                        tab()
+                    // On a cold CI start the Continue core process must boot and load the
+                    // test config before it can serve completions. Press Tab to accept the
+                    // inline suggestion once it appears; if it was not up yet, Tab inserts
+                    // a literal tab which we remove before the next attempt.
+                    var found = false
+                    var attempts = 0
+                    val maxAttempts = 8
+                    while (!found && attempts < maxAttempts) {
+                        attempts++
+                        wait(4.seconds)
+                        keyboard {
+                            tab()
+                        }
+                        wait(2.seconds)
+                        found = text.contains("TEST_LLM_RESPONSE_0")
+                        if (!found) {
+                            keyboard {
+                                backspace()
+                            }
+                        }
                     }
 
-                    // Wait for autocomplete response
-                    wait(5.seconds)
-
-                    val editorText = text
-                    assertTrue(
-                        editorText.contains("TEST_LLM_RESPONSE_0"),
-                        "Expected autocomplete response not found. Editor contains: $editorText"
-                    )
+                    if (!found) {
+                        assertTrue(
+                            found,
+                            "Autocomplete response never appeared after $maxAttempts attempts. " +
+                                "Editor contains: \"$text\". " +
+                                "Core binary check: ${coreBinaryCheck()}; " +
+                                "core log tail: ${coreLogTail()}; " +
+                                "idea log tail: ${ideaLogTail()}"
+                        )
+                    }
                 }
             }
         }
     }
 
+    /**
+     * The plugin sandbox must contain the packaged Continue core binary; if the
+     * prepareSandbox copy step failed, autocomplete can never work and the test
+     * should say so explicitly instead of timing out invisibly.
+     */
+    private fun coreBinaryCheck(): String {
+        return try {
+            val pluginDir = File(System.getProperty("CONTINUE_PLUGIN_DIR"))
+            val coreDir = File(pluginDir, "core")
+            val binary = File(coreDir, "linux-x64/continue-binary")
+            when {
+                binary.exists() -> "binary OK at ${binary.path}"
+                coreDir.exists() ->
+                    "binary MISSING; core dir contains: " +
+                        coreDir.walkTopDown().take(40).joinToString(", ") { it.relativeTo(pluginDir).path }
+                else -> "core dir MISSING entirely under ${pluginDir.path}: " +
+                    pluginDir.listFiles()?.joinToString(", ") { it.name }.orEmpty()
+            }
+        } catch (e: Exception) {
+            "error: ${e.message}"
+        }
+    }
+
+    /**
+     * Core writes its log under $CONTINUE_GLOBAL_DIR/logs/core.log (the test task
+     * points CONTINUE_GLOBAL_DIR at the checked-in test-continue directory), but
+     * some setups fall back to $HOME/.continue/logs/core.log. Its tail usually
+     * names the exact failure (config parse error, provider error, wasm abort).
+     */
+    private fun coreLogTail(): String {
+        return try {
+            val globalDir = File(
+                System.getenv("CONTINUE_GLOBAL_DIR")
+                    ?: File(System.getProperty("user.dir"), "src/testIntegration/kotlin/com/github/continuedev/continueintellijextension/test-continue").path
+            )
+            val candidates = listOf(
+                File(globalDir, "logs/core.log"),
+                File(System.getProperty("user.home"), ".continue/logs/core.log"),
+                File(System.getProperty("user.home"), ".continue/index/logs/core.log"),
+            )
+            val coreLog = candidates.firstOrNull { it.exists() }
+            if (coreLog != null) {
+                "${coreLog.path}: " + coreLog.readLines().takeLast(30).joinToString(" | ")
+            } else {
+                "no core.log in ${candidates.map { it.path }} (global dir: ${globalDir.listFiles()?.joinToString(", ") { it.name }.orEmpty()}; home: ${File(System.getProperty("user.home"), ".continue").listFiles()?.joinToString(", ") { it.name }.orEmpty()})"
+            }
+        } catch (e: Exception) {
+            "error: ${e.message}"
+        }
+    }
+
+    /**
+     * The IDE sandbox idea.log names plugin startup problems (core spawn
+     * failures, config errors, extension activation crashes). Starter-based
+     * runs (runIdeWithDriver) write it under the IDE tests dir
+     * (out/ide-tests/tests/IC-<build>/<name>/log), not the plugin sandbox.
+     */
+    private fun ideaLogTail(): String {
+        return try {
+            val logDirs = listOf(
+                File("out/ide-tests/tests"),
+                File("build/idea-sandbox"),
+            )
+            val ideaLog = logDirs.flatMap { root ->
+                if (root.exists()) root.walkTopDown().filter { it.isFile && it.name == "idea.log" } else emptySequence()
+            }.maxByOrNull { it.lastModified() }
+            if (ideaLog != null) {
+                ideaLog.readLines()
+                    .filter {
+                        it.contains("continue", ignoreCase = true) ||
+                            it.contains("ERROR") ||
+                            it.contains("unexpected")
+                    }
+                    .takeLast(40)
+                    .joinToString(" | ")
+            } else {
+                "no idea.log under ${logDirs.map { it.path }}"
+            }
+        } catch (e: Exception) {
+            "error: ${e.message}"
+        }
+    }
 }
