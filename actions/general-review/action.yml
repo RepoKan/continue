@@ -108,7 +108,7 @@ runs:
       if: env.SHOULD_RUN == 'true'
       uses: actions/setup-node@v4
       with:
-        node-version: 20
+        node-version: 24.22.2
 
     - name: Install Continue CLI
       if: env.SHOULD_RUN == 'true'
