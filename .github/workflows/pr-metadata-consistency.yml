@@ -70,6 +70,40 @@ jobs:
               if sha != pr.get("head", {}).get("sha"):
                   raise ValueError("recorded SHA is stale; reconcile evidence for live head")
               return "metadata consistent; independent merge gates still apply"
+          def self_test():
+              sha = "a" * 40
+              base = {"schema": 1, "gate": "READY", "required_draft": False, "recorded_head_sha": sha}
+              def pr(c=None, draft=False):
+                  return {"state": "open", "draft": draft, "head": {"sha": sha}, "body": "<!-- pr-state-contract: " + json.dumps(base if c is None else c) + " -->"}
+              cases = [
+                  (pr(), True, True),
+                  (pr(dict(base, gate="HOLD", required_draft=True), True), True, True),
+                  (pr(dict(base, gate="HOLD", required_draft=True)), True, False),
+                  (pr(dict(base, recorded_head_sha="b" * 40)), True, False),
+                  (pr(dict(base, required_draft="false")), True, False),
+                  (pr(dict(base, schema=True)), True, False),
+                  (pr(dict(base, gate="PASS")), True, False),
+                  (pr(dict(base, extra=True)), True, False),
+                  (dict(pr(), body=""), True, False),
+                  (dict(pr(), body=""), False, True),
+                  (dict(pr(), body=pr()["body"] * 2), True, False),
+                  (dict(pr(), body="<!-- pr-state-contract: {oops} -->"), True, False),
+                  (dict(pr(), body=pr()["body"].replace('"schema": 1', '"schema": 1, "schema": 1')), True, False),
+                  (dict(pr(), state=None), True, False),
+                  (dict(pr(), draft=None), True, False),
+                  (dict(pr(), state="closed"), True, True),
+                  (pr(dict(base, gate="HOLD", required_draft=False)), True, False),
+              ]
+              for index, (candidate, governed, expected) in enumerate(cases):
+                  try:
+                      validate(candidate, governed)
+                      actual = True
+                  except (ValueError, TypeError):
+                      actual = False
+                  if actual != expected:
+                      raise ValueError("metadata regression " + str(index) + " failed")
+              print("Metadata regression cases: " + str(len(cases)) + " PASS")
+          self_test()
           import os, urllib.request
           with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as stream:
               event = json.load(stream)
