@@ -107,6 +107,33 @@ class ContinueInlineCompletionProviderTest : BasePlatformTestCase() {
         assertNull(uuid)
     }
 
+    fun `test accepted completion uses the UUID from its own request`() = myFixture.testInlineCompletion {
+        val requestedUuids = mutableListOf<String>()
+        var acceptedUuid: String? = null
+        myFixture.project.replaceService(
+            CompletionService::class.java,
+            object : CompletionService {
+                override suspend fun getAutocomplete(uuid: String, url: String, line: Int, column: Int): String? {
+                    requestedUuids += uuid
+                    return "test"
+                }
+
+                override fun acceptAutocomplete(uuid: String?) {
+                    acceptedUuid = uuid
+                }
+            },
+            testRootDisposable
+        )
+
+        init(PlainTextFileType.INSTANCE, "test <caret>")
+        callInlineCompletion()
+        delay()
+        insertWithTab()
+
+        assertEquals(1, requestedUuids.size)
+        assertEquals(requestedUuids.single(), acceptedUuid)
+    }
+
     private fun registerSuggestion(variant: String?, accept: (String?) -> Unit = {}) =
         myFixture.project.replaceService(
             CompletionService::class.java,
