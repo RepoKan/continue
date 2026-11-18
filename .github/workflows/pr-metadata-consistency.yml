@@ -17,6 +17,7 @@ concurrency:
   # Serialize writers across the repository, not across individual PRs.
   group: pr-metadata-${{ github.repository }}
   cancel-in-progress: false
+  queue: max
 jobs:
   metadata:
     name: PR metadata consistency
@@ -169,17 +170,27 @@ jobs:
               with urllib.request.urlopen(req, timeout=30) as response:
                   return json.load(response)
 
-          def open_pulls():
+          def all_pulls():
+              # Closing/reopening a PR never removes it from this stable order.
               pulls = []
               page = 1
               while True:
-                  batch = request("/pulls?state=open&per_page=100&page=" + str(page))
+                  batch = request("/pulls?state=all&sort=created&direction=asc&per_page=100&page=" + str(page))
                   if not isinstance(batch, list):
-                      raise ValueError("invalid open PR response")
+                      raise ValueError("invalid PR inventory response")
                   pulls.extend(batch)
                   if len(batch) < 100:
+                      numbers = [p["number"] for p in pulls]
+                      if len(numbers) != len(set(numbers)):
+                          raise ValueError("duplicate PR across inventory pages")
                       return pulls
                   page += 1
+
+          def inventory_snapshot(pulls):
+              fields = ("number", "body", "draft", "state", "updated_at")
+              return sorted([dict({k: p.get(k) for k in fields},
+                                  head_sha=p.get("head", {}).get("sha"))
+                             for p in pulls], key=lambda p: p["number"])
 
           path = "/pulls/" + str(int(number))
           pr = request(path)
@@ -187,25 +198,48 @@ jobs:
           if not re.fullmatch(r"[0-9a-f]{40}", sha):
               raise SystemExit("invalid live head SHA")
           run_url = os.environ["GITHUB_SERVER_URL"] + "/" + repo + "/actions/runs/" + os.environ["GITHUB_RUN_ID"]
-          def publish(state, description):
-              request("/statuses/" + sha, {"state": state, "context": "PR metadata / merge gate", "description": description[:140], "target_url": run_url})
+          def publish(head, state, description):
+              request("/statuses/" + head, {"state": state, "context": "PR metadata / merge gate", "description": description[:140], "target_url": run_url})
 
-          publish("pending", "Checking all open PRs sharing this commit SHA")
+          # Every surviving run reconciles every live head: queue overflow cannot
+          # strand a different open PR's status. GitHub's queue retains 100 runs.
+          targets = {sha}
+          previous = event.get("before")
+          if event.get("action") == "synchronize" and isinstance(previous, str) and re.fullmatch(r"[0-9a-f]{40}", previous):
+              targets.add(previous)
+          for head in sorted(targets):
+              publish(head, "pending", "Reconciling live metadata for all open PR heads")
           try:
-              pulls = open_pulls()
-              snapshot = head_snapshot(pulls, sha)
-              if pr["state"] == "open" and not any(p["number"] == pr["number"] for p in snapshot):
-                  raise ValueError("trigger PR missing from live open PR inventory")
-              result = evaluate_head(pulls, sha, int(os.environ["GOVERNED_PR"]))
+              pulls = all_pulls()
+              snapshot = inventory_snapshot(pulls)
+              heads = {p["head"]["sha"] for p in pulls if p.get("state") == "open"}
+              if any(not re.fullmatch(r"[0-9a-f]{40}", head) for head in heads):
+                  raise ValueError("invalid inventory head SHA")
+              for head in sorted(heads - targets):
+                  publish(head, "pending", "Reconciling live metadata for all open PR heads")
+              targets.update(heads)
+              if pr["state"] == "open" and not any(p["number"] == pr["number"] for p in head_snapshot(pulls, sha)):
+                  raise ValueError("trigger PR missing from live PR inventory")
+              decisions = {}
+              for head in sorted(targets):
+                  try:
+                      result = evaluate_head(pulls, head, int(os.environ["GOVERNED_PR"]))
+                      decisions[head] = ("success", result)
+                  except (ValueError, TypeError, KeyError):
+                      decisions[head] = ("failure", "HOLD, Draft or invalid metadata on this shared head")
               latest = request(path)
               fields = ("body", "draft", "head", "state", "updated_at")
               if any(latest.get(k) != pr.get(k) for k in fields):
                   raise ValueError("trigger PR changed during validation; rerun required")
-              if head_snapshot(open_pulls(), sha) != snapshot:
-                  raise ValueError("shared-head PR set changed; rerun required")
-              publish("success", result)
-              print(result)
+              if inventory_snapshot(all_pulls()) != snapshot:
+                  raise ValueError("full PR inventory changed; rerun required")
+              for head, (state, result) in decisions.items():
+                  publish(head, state, result)
+              if decisions[sha][0] != "success":
+                  raise SystemExit("Trigger head intentionally blocked by live metadata")
+              print("Reconciled all open heads; trigger metadata is consistent")
           except (ValueError, TypeError, KeyError, OSError):
-              publish("failure", "HOLD, Draft, conflicting metadata or unverifiable shared-head state")
-              raise SystemExit("PR metadata gate blocked; reconcile live shared-head PR state")
+              for head in sorted(targets):
+                  publish(head, "failure", "Live PR inventory changed or cannot be verified")
+              raise SystemExit("PR metadata inventory cannot be verified")
           PY
