@@ -107,6 +107,13 @@ runs:
         cd binary
         npm run build
 
+    - name: Verify packaged core startup
+      shell: bash
+      run: |
+        core_preflight_dir=$(mktemp -d)
+        trap 'rm -rf "$core_preflight_dir"' EXIT
+        CONTINUE_GLOBAL_DIR="$core_preflight_dir" timeout 20s binary/bin/linux-x64/continue-binary --help
+
     - name: Run tests
       shell: bash
       run: |
