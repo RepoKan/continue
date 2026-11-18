@@ -309,9 +309,6 @@ jobs:
           path: extensions/vscode/build
 
   vscode-e2e-tests:
-    permissions:
-      contents: read
-      actions: read
     name: ${{ matrix.test_file || 'unknown' }} (${{ matrix.command }})
     needs: [vscode-get-test-file-matrix, vscode-package-extension-linux]
     runs-on: ubuntu-latest
@@ -335,9 +332,6 @@ jobs:
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
 
   jetbrains-tests:
-    permissions:
-      contents: read
-      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
