@@ -10,6 +10,7 @@ function isTransient(result) {
   const output = `${result.stdout || ""}\n${result.stderr || ""}`;
   return (
     ["ECONNRESET", "ETIMEDOUT", "EAI_AGAIN"].includes(result.error?.code) ||
+    /\b(?:ECONNRESET|ETIMEDOUT|EAI_AGAIN)\b/i.test(output) ||
     /(?:Server returned|HTTP(?: status)?)[ :]*(?:429|500|502|503|504)\b/i.test(
       output,
     )
@@ -33,7 +34,12 @@ function installExtension(extension, options = {}) {
         "--storage",
         "./e2e/storage",
       ],
-      { encoding: "utf8", timeout: 60000, maxBuffer: 10 * 1024 * 1024 },
+      {
+        encoding: "utf8",
+        timeout: 60000,
+        maxBuffer: 10 * 1024 * 1024,
+        shell: (options.platform || process.platform) === "win32",
+      },
     );
     write(result.stdout || "");
     write(result.stderr || "");

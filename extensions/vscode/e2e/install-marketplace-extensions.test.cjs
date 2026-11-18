@@ -78,3 +78,21 @@ test("installAll installs the same three extensions in order", () => {
     "ms-vscode-remote.remote-wsl",
   ]);
 });
+
+test("installExtension recognizes network codes printed by the child", () => {
+  for (const code of ["ECONNRESET", "ETIMEDOUT", "EAI_AGAIN"]) {
+    for (const stream of ["stdout", "stderr"]) {
+      const f = fixture([{ status: 1, [stream]: `Error: read ${code}` }, { status: 0 }]);
+      assert.equal(installExtension("example.extension", f), 0);
+      assert.equal(f.calls.length, 2);
+    }
+  }
+});
+
+test("installExtension enables shell only for the Windows npm shim", () => {
+  for (const platform of ["win32", "linux", "darwin"]) {
+    const f = fixture([{ status: 0 }]);
+    assert.equal(installExtension("example.extension", { ...f, platform }), 0);
+    assert.equal(f.calls[0][2].shell, platform === "win32");
+  }
+});
