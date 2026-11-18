@@ -2,7 +2,7 @@ package com.github.continuedev.continueintellijextension
 
 import com.automation.remarks.junit5.Video
 import com.intellij.driver.sdk.ui.components.*
-import com.intellij.driver.sdk.wait
+import com.intellij.driver.sdk.waitFor
 import com.intellij.driver.sdk.waitForIndicators
 import com.intellij.ide.starter.driver.engine.runIdeWithDriver
 import com.intellij.ide.starter.ide.IdeProductProvider
@@ -42,6 +42,7 @@ class Autocomplete {
                     clickTab("Main.java")
                 }
                 codeEditor {
+                    click()
                     // Clear any existing text using the IntelliJ Driver keyboard API.
                     keyboard {
                         hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_A)
@@ -54,14 +55,19 @@ class Autocomplete {
                         space()
                     }
 
-                    // Trigger autocomplete with longer wait for plugin initialization
-                    wait(3.seconds)
+                    // Tab must accept a visible suggestion, not insert indentation.
+                    waitFor("autocomplete suggestion", 30.seconds) {
+                        getInlayHints().any { hint ->
+                            hint.text.contains("TEST_LLM_RESPONSE_0")
+                        }
+                    }
                     keyboard {
                         tab()
                     }
 
-                    // Wait for autocomplete response
-                    wait(5.seconds)
+                    waitFor("autocomplete insertion", 10.seconds) {
+                        text.contains("TEST_LLM_RESPONSE_0")
+                    }
 
                     val editorText = text
                     assertTrue(
@@ -74,4 +80,3 @@ class Autocomplete {
     }
 
 }
-

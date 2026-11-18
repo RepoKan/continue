@@ -69,7 +69,7 @@ runs:
           npm ci
         fi
       env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token || github.token }}
 
     - name: Fix VSCode binary permissions
       shell: bash

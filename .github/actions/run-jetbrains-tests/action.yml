@@ -86,7 +86,7 @@ runs:
         npm run prepackage
       env:
         # https://github.com/microsoft/vscode-ripgrep/issues/9#issuecomment-643965333
-        GITHUB_TOKEN: ${{ inputs.ci-github-token }}
+        GITHUB_TOKEN: ${{ inputs.ci-github-token || github.token }}
 
     - uses: actions/cache@v4
       id: binary-cache
