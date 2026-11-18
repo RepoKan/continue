@@ -1,7 +1,7 @@
 name: PR metadata consistency
 on:
   pull_request_target:
-    types: [opened, edited, reopened, synchronize, ready_for_review, converted_to_draft]
+    types: [opened, edited, reopened, synchronize, ready_for_review, converted_to_draft, closed]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -13,8 +13,11 @@ permissions:
   pull-requests: read
   statuses: write
 concurrency:
-  group: pr-metadata-${{ github.event.pull_request.number || inputs.pr_number }}
-  cancel-in-progress: true
+  # Commit statuses are shared by every PR with the same head SHA.
+  # Serialize writers across the repository, not across individual PRs.
+  group: pr-metadata-${{ github.repository }}
+  cancel-in-progress: false
+  queue: max
 jobs:
   metadata:
     name: PR metadata consistency
@@ -103,7 +106,55 @@ jobs:
                   if actual != expected:
                       raise ValueError("metadata regression " + str(index) + " failed")
               print("Metadata regression cases: " + str(len(cases)) + " PASS")
+          def head_snapshot(pulls, sha):
+              selected = [pr for pr in pulls if pr.get("state") == "open"
+                          and pr.get("head", {}).get("sha") == sha]
+              return sorted(selected, key=lambda pr: pr["number"])
+
+          def evaluate_head(pulls, sha, governed_number):
+              related = head_snapshot(pulls, sha)
+              if not related:
+                  raise ValueError("no open PR remains for this head")
+              for candidate in related:
+                  validate(candidate, candidate["number"] == governed_number)
+                  matches = re.findall(r"<!--\s*pr-state-contract:\s*(.*?)\s*-->",
+                                       candidate.get("body") or "", re.S)
+                  hold = bool(matches) and json.loads(matches[0])["gate"] == "HOLD"
+                  if candidate.get("draft") or hold:
+                      raise ValueError("an open PR sharing this head is HOLD or Draft")
+              return "All open PRs sharing this head satisfy metadata checks"
+
+          def aggregate_self_test():
+              sha = "a" * 40
+              ready = {"number": 1, "state": "open", "draft": False,
+                       "head": {"sha": sha}, "body": ""}
+              hold = dict(ready, number=2, draft=True, body="<!-- pr-state-contract: " +
+                          json.dumps({"schema": 1, "gate": "HOLD", "required_draft": True,
+                                      "recorded_head_sha": sha}) + " -->")
+              cases = [
+                  ([ready], True),
+                  ([ready, hold], False),
+                  ([hold, ready], False),
+                  ([ready, dict(hold, draft=False)], False),
+                  ([ready, dict(hold, state="closed")], True),
+                  ([ready, dict(hold, head={"sha": "b" * 40})], True),
+                  ([dict(ready, draft=True)], False),
+                  ([], False),
+                  ([dict(ready, number=12)], False),
+                  ([dict(ready, body="<!-- pr-state-contract: {oops} -->")], False),
+              ]
+              for index, (pulls, expected) in enumerate(cases):
+                  try:
+                      evaluate_head(pulls, sha, 12)
+                      actual = True
+                  except (ValueError, TypeError, KeyError):
+                      actual = False
+                  if actual != expected:
+                      raise ValueError("shared-head regression " + str(index) + " failed")
+              print("Shared-head regression cases: " + str(len(cases)) + " PASS")
+
           self_test()
+          aggregate_self_test()
           import os, urllib.request
           with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as stream:
               event = json.load(stream)
@@ -118,28 +169,77 @@ jobs:
               req = urllib.request.Request(api + path, data=data, headers=headers)
               with urllib.request.urlopen(req, timeout=30) as response:
                   return json.load(response)
+
+          def all_pulls():
+              # Closing/reopening a PR never removes it from this stable order.
+              pulls = []
+              page = 1
+              while True:
+                  batch = request("/pulls?state=all&sort=created&direction=asc&per_page=100&page=" + str(page))
+                  if not isinstance(batch, list):
+                      raise ValueError("invalid PR inventory response")
+                  pulls.extend(batch)
+                  if len(batch) < 100:
+                      numbers = [p["number"] for p in pulls]
+                      if len(numbers) != len(set(numbers)):
+                          raise ValueError("duplicate PR across inventory pages")
+                      return pulls
+                  page += 1
+
+          def inventory_snapshot(pulls):
+              fields = ("number", "body", "draft", "state", "updated_at")
+              return sorted([dict({k: p.get(k) for k in fields},
+                                  head_sha=p.get("head", {}).get("sha"))
+                             for p in pulls], key=lambda p: p["number"])
+
           path = "/pulls/" + str(int(number))
           pr = request(path)
           sha = pr["head"]["sha"]
           if not re.fullmatch(r"[0-9a-f]{40}", sha):
               raise SystemExit("invalid live head SHA")
           run_url = os.environ["GITHUB_SERVER_URL"] + "/" + repo + "/actions/runs/" + os.environ["GITHUB_RUN_ID"]
-          def publish(state, description):
-              request("/statuses/" + sha, {"state": state, "context": "PR metadata / merge gate", "description": description[:140], "target_url": run_url})
-          publish("pending", "Checking live PR metadata and decision gate")
+          def publish(head, state, description):
+              request("/statuses/" + head, {"state": state, "context": "PR metadata / merge gate", "description": description[:140], "target_url": run_url})
+
+          # Every surviving run reconciles every live head: queue overflow cannot
+          # strand a different open PR's status. GitHub's queue retains 100 runs.
+          targets = {sha}
+          previous = event.get("before")
+          if event.get("action") == "synchronize" and isinstance(previous, str) and re.fullmatch(r"[0-9a-f]{40}", previous):
+              targets.add(previous)
+          for head in sorted(targets):
+              publish(head, "pending", "Reconciling live metadata for all open PR heads")
           try:
-              result = validate(pr, int(number) == int(os.environ["GOVERNED_PR"]))
+              pulls = all_pulls()
+              snapshot = inventory_snapshot(pulls)
+              heads = {p["head"]["sha"] for p in pulls if p.get("state") == "open"}
+              if any(not re.fullmatch(r"[0-9a-f]{40}", head) for head in heads):
+                  raise ValueError("invalid inventory head SHA")
+              for head in sorted(heads - targets):
+                  publish(head, "pending", "Reconciling live metadata for all open PR heads")
+              targets.update(heads)
+              if pr["state"] == "open" and not any(p["number"] == pr["number"] for p in head_snapshot(pulls, sha)):
+                  raise ValueError("trigger PR missing from live PR inventory")
+              decisions = {}
+              for head in sorted(targets):
+                  try:
+                      result = evaluate_head(pulls, head, int(os.environ["GOVERNED_PR"]))
+                      decisions[head] = ("success", result)
+                  except (ValueError, TypeError, KeyError):
+                      decisions[head] = ("failure", "HOLD, Draft or invalid metadata on this shared head")
               latest = request(path)
-              if any(latest.get(k) != pr.get(k) for k in ("body", "draft", "head", "state", "updated_at")):
-                  raise ValueError("PR changed during validation; rerun required")
-              matches = re.findall(r"<!--\s*pr-state-contract:\s*(.*?)\s*-->", pr.get("body") or "", re.S)
-              hold = bool(matches) and json.loads(matches[0])["gate"] == "HOLD"
-              if pr.get("draft") or hold:
-                  publish("failure", "HOLD or Draft: merge is not authorized by this gate")
-                  raise SystemExit("Metadata consistent, but HOLD/Draft intentionally blocks merge")
-              publish("success", result)
-              print(result)
-          except (ValueError, TypeError, KeyError) as error:
-              publish("failure", "Invalid, conflicting or stale PR state contract")
-              raise SystemExit("PR metadata gate failed: " + str(error))
+              fields = ("body", "draft", "head", "state", "updated_at")
+              if any(latest.get(k) != pr.get(k) for k in fields):
+                  raise ValueError("trigger PR changed during validation; rerun required")
+              if inventory_snapshot(all_pulls()) != snapshot:
+                  raise ValueError("full PR inventory changed; rerun required")
+              for head, (state, result) in decisions.items():
+                  publish(head, state, result)
+              if decisions[sha][0] != "success":
+                  raise SystemExit("Trigger head intentionally blocked by live metadata")
+              print("Reconciled all open heads; trigger metadata is consistent")
+          except (ValueError, TypeError, KeyError, OSError):
+              for head in sorted(targets):
+                  publish(head, "failure", "Live PR inventory changed or cannot be verified")
+              raise SystemExit("PR metadata inventory cannot be verified")
           PY
