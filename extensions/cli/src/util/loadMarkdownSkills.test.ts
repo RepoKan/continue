@@ -13,6 +13,10 @@ vi.mock("../env.js", () => ({
   },
 }));
 
+vi.mock("./logger.js", () => ({
+  logger: { debug: vi.fn() },
+}));
+
 describe("loadMarkdownSkills", () => {
   let tmpDir: string;
   let originalCwd: string;
