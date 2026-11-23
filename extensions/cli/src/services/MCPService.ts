@@ -111,7 +111,18 @@ export class MCPService
     const connectedServers = connections.filter(
       (c) => c.status === "connected",
     );
-    const tools = connectedServers.flatMap((s) => s.tools);
+    // An unqualified name shared by two servers cannot be routed safely.
+    // Hide such tools from model-facing advertisements; runTool still rejects
+    // attempts to call an ambiguous name.
+    const nameCounts = new Map<string, number>();
+    for (const server of connectedServers) {
+      for (const name of new Set(server.tools.map((tool) => tool.name))) {
+        nameCounts.set(name, (nameCounts.get(name) ?? 0) + 1);
+      }
+    }
+    const tools = connectedServers.flatMap((server) =>
+      server.tools.filter((tool) => nameCounts.get(tool.name) === 1),
+    );
     const prompts = connectedServers.flatMap((s) => s.prompts);
 
     const newState: MCPServiceState = {
@@ -181,25 +192,33 @@ export class MCPService
    * Run a tool by name
    */
   public async runTool(name: string, args: Record<string, any>) {
-    for (const connection of this.connections.values()) {
-      if (connection.status === "connected" && connection.client) {
-        const tool = connection.tools.find((t) => t.name === name);
-        if (tool) {
-          const serverName = connection.config!.name;
-          return await this.withTokenRefresh(serverName, async () => {
-            const conn = this.connections.get(serverName);
-            if (!conn?.client) {
-              throw new Error(`Client for ${serverName} not available`);
-            }
-            return await conn.client.callTool({
-              name,
-              arguments: args,
-            });
-          });
-        }
-      }
+    const matchingConnections = Array.from(this.connections.values()).filter(
+      (connection) =>
+        connection.status === "connected" &&
+        connection.client &&
+        connection.tools.some((tool) => tool.name === name),
+    );
+
+    if (matchingConnections.length > 1) {
+      throw new Error("Tool " + name + " is ambiguous across MCP servers");
     }
-    throw new Error(`Tool ${name} not found`);
+
+    const connection = matchingConnections[0];
+    if (!connection) {
+      throw new Error("Tool " + name + " not found");
+    }
+
+    const serverName = connection.config!.name;
+    return await this.withTokenRefresh(serverName, async () => {
+      const conn = this.connections.get(serverName);
+      if (!conn?.client) {
+        throw new Error("Client for " + serverName + " not available");
+      }
+      return await conn.client.callTool({
+        name,
+        arguments: args,
+      });
+    });
   }
 
   /**

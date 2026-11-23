@@ -49,12 +49,29 @@ export class ModelService
       assistantModelsCount: assistant?.models?.length || 0,
     });
 
-    this.assistant = assistant;
-    this.authConfig = authConfig;
-    this.availableModels = (assistant.models?.filter(
+    const nextAvailableModels = (assistant.models?.filter(
       (model) =>
         model && (model.roles?.includes("chat") || model.roles === undefined),
     ) || []) as ModelConfig[];
+
+    // Before first initialization completes, expose the candidate list so a
+    // user can explicitly select a model after a legacy-selection error.
+    // A failed *reload* must not overwrite the last published configuration.
+    if (!this.currentState.assistant) {
+      this.assistant = assistant;
+      this.authConfig = authConfig;
+      this.availableModels = nextAvailableModels;
+    }
+
+    const commitSelection = (
+      llmApi: ModelServiceState["llmApi"],
+      model: ModelServiceState["model"],
+    ): ModelServiceState => {
+      this.assistant = assistant;
+      this.authConfig = authConfig;
+      this.availableModels = nextAvailableModels;
+      return { llmApi, model, assistant, authConfig };
+    };
 
     let preferredModelName: string | null | undefined = null;
     let modelSource = "default";
@@ -74,24 +91,29 @@ export class ModelService
     // Try to use the preferred model (agent file or persisted)
     if (preferredModelName) {
       // During initialization, we need to check against availableModels directly
-      const modelIndex = this.availableModels.findIndex((model) => {
-        const name = (model as any).name || (model as any).model;
-        return name === preferredModelName;
-      });
+      const modelMatches = nextAvailableModels
+        .map((model, index) => ({ model, index }))
+        .filter(({ model }) => {
+          const name = model.name || model.model;
+          return name === preferredModelName;
+        });
+      // Duplicate names can carry different providers, endpoints or API keys.
+      // Never silently route a saved selection to the first matching model.
+      if (modelMatches.length > 1) {
+        throw new Error(
+          "Ambiguous model name in configuration; choose a uniquely named model",
+        );
+      }
+      const modelIndex = modelMatches[0]?.index ?? -1;
       if (modelIndex === -1) {
         // Preferred model not found, use default model selection
         const [llmApi, model] = getLlmApi(assistant, authConfig);
-        return {
-          llmApi,
-          model,
-          assistant,
-          authConfig,
-        };
+        return commitSelection(llmApi, model);
       } else {
         // Use the preferred model - but we need to handle initialization specially
         // During init, currentState isn't set yet, so switchModel would fail
         // Instead, we'll manually switch here
-        const selectedModel = this.availableModels[modelIndex];
+        const selectedModel = nextAvailableModels[modelIndex];
         logger.debug(`Using ${modelSource} model during initialization`, {
           modelIndex,
           provider: selectedModel.provider,
@@ -104,22 +126,12 @@ export class ModelService
           throw new Error(`Failed to initialize LLM with ${modelSource} model`);
         }
 
-        return {
-          llmApi,
-          model: selectedModel,
-          assistant,
-          authConfig,
-        };
+        return commitSelection(llmApi, selectedModel);
       }
     } else {
       // Use default model selection
       const [llmApi, model] = getLlmApi(assistant, authConfig);
-      return {
-        llmApi,
-        model,
-        assistant,
-        authConfig,
-      };
+      return commitSelection(llmApi, model);
     }
   }
 
@@ -156,8 +168,10 @@ export class ModelService
     name: string;
     index: number;
   }> {
-    // Get assistant from state to ensure we have the latest data
-    const { assistant } = this.getState();
+    // Initialization can fail before state is published (for example, when a
+    // legacy global model selection requires explicit workspace migration).
+    // Keep the already-loaded assistant selectable without choosing a provider.
+    const assistant = this.getState().assistant || this.assistant;
     if (!assistant || !assistant.models) {
       return [];
     }
@@ -255,6 +269,28 @@ export class ModelService
       this.emit("error", error);
       throw error;
     }
+  }
+
+  /**
+   * A name-only persisted selection is safe only when that name is unique.
+   */
+  isModelNameUnique(modelIndex: number): boolean {
+    const selectedModel = this.availableModels[modelIndex];
+    if (!selectedModel) {
+      return false;
+    }
+
+    // Name-only persistence must never substitute "unnamed" for an empty name.
+    if (!selectedModel.name?.trim()) {
+      return false;
+    }
+
+    const selectedName = selectedModel.name;
+    return (
+      this.availableModels.filter(
+        (model) => (model.name || model.model) === selectedName,
+      ).length === 1
+    );
   }
 
   /**

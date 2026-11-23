@@ -1,4 +1,5 @@
 import { PermissionMode } from "../permissions/types.js";
+import { getSubagentContext } from "../subagent/sessionContext.js";
 import { constructSystemMessage } from "../systemMessage.js";
 import { logger } from "../util/logger.js";
 
@@ -47,6 +48,10 @@ export class SystemMessageService extends BaseService<SystemMessageServiceState>
    * Get a fresh system message with current mode and configuration
    */
   public async getSystemMessage(currentMode: PermissionMode): Promise<string> {
+    const childMessage = getSubagentContext()?.systemMessage;
+    if (childMessage !== undefined) {
+      return childMessage;
+    }
     const { additionalRules, format, headless } = this.currentState;
 
     const systemMessage = await constructSystemMessage(

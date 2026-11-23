@@ -140,6 +140,128 @@ describe("MCPService", () => {
       expect(Array.isArray(mcpService.getState().tools)).toBe(true);
     });
 
+    it("omits ambiguous MCP names from advertised tools", () => {
+      const firstClient = { callTool: vi.fn(), close: vi.fn() };
+      const secondClient = { callTool: vi.fn(), close: vi.fn() };
+      (mcpService as any).connections = new Map([
+        [
+          "first-server",
+          {
+            config: { name: "first-server" },
+            status: "connected",
+            tools: [{ name: "shared" }, { name: "first_only" }],
+            prompts: [],
+            warnings: [],
+            client: firstClient,
+          },
+        ],
+        [
+          "second-server",
+          {
+            config: { name: "second-server" },
+            status: "connected",
+            tools: [{ name: "shared" }, { name: "second_only" }],
+            prompts: [],
+            warnings: [],
+            client: secondClient,
+          },
+        ],
+      ]);
+
+      (mcpService as any).updateState();
+      expect(mcpService.getState().tools.map((tool) => tool.name)).toEqual([
+        "first_only",
+        "second_only",
+      ]);
+      expect(mcpService.getState().connections).toHaveLength(2);
+    });
+
+    it("rejects duplicate MCP tool names across connected servers", async () => {
+      const firstClient = {
+        callTool: vi.fn(() => Promise.resolve({ content: [] })),
+        close: vi.fn(() => Promise.resolve()),
+      };
+      const secondClient = {
+        callTool: vi.fn(() => Promise.resolve({ content: [] })),
+        close: vi.fn(() => Promise.resolve()),
+      };
+
+      (mcpService as any).connections = new Map([
+        [
+          "first-server",
+          {
+            config: { name: "first-server" },
+            status: "connected",
+            tools: [{ name: "send_message" }],
+            prompts: [],
+            warnings: [],
+            client: firstClient,
+          },
+        ],
+        [
+          "second-server",
+          {
+            config: { name: "second-server" },
+            status: "connected",
+            tools: [{ name: "send_message" }],
+            prompts: [],
+            warnings: [],
+            client: secondClient,
+          },
+        ],
+      ]);
+
+      await expect(mcpService.runTool("send_message", {})).rejects.toThrow(
+        "Tool send_message is ambiguous across MCP servers",
+      );
+      expect(firstClient.callTool).not.toHaveBeenCalled();
+      expect(secondClient.callTool).not.toHaveBeenCalled();
+    });
+
+    it("dispatches a unique MCP tool to its owning server", async () => {
+      const firstClient = {
+        callTool: vi.fn(() => Promise.resolve({ content: [] })),
+        close: vi.fn(() => Promise.resolve()),
+      };
+      const secondClient = {
+        callTool: vi.fn(() => Promise.resolve({ content: [] })),
+        close: vi.fn(() => Promise.resolve()),
+      };
+
+      (mcpService as any).connections = new Map([
+        [
+          "first-server",
+          {
+            config: { name: "first-server" },
+            status: "connected",
+            tools: [{ name: "first_only" }],
+            prompts: [],
+            warnings: [],
+            client: firstClient,
+          },
+        ],
+        [
+          "second-server",
+          {
+            config: { name: "second-server" },
+            status: "connected",
+            tools: [{ name: "second_only" }],
+            prompts: [],
+            warnings: [],
+            client: secondClient,
+          },
+        ],
+      ]);
+
+      await mcpService.runTool("second_only", { value: "synthetic" });
+
+      expect(firstClient.callTool).not.toHaveBeenCalled();
+      expect(secondClient.callTool).toHaveBeenCalledWith({
+        name: "second_only",
+        arguments: { value: "synthetic" },
+      });
+    });
+
     it("should throw error for unknown tool", async () => {
       await expect(mcpService.runTool("unknown-tool", {})).rejects.toThrow(
         "Tool unknown-tool not found",
@@ -218,11 +340,10 @@ describe("MCPService", () => {
       ).resolves.not.toThrow();
     });
 
-    it("should create HttpsAgent when verifySsl is false for SSE transport", async () => {
+    it("rejects insecure TLS settings for sseAssistant", async () => {
       const { SSEClientTransport } = await import(
         "@modelcontextprotocol/sdk/client/sse.js"
       );
-      const { Agent: HttpsAgent } = await import("https");
 
       const sseAssistant: AssistantConfig = {
         name: "sse-assistant",
@@ -239,22 +360,12 @@ describe("MCPService", () => {
         ],
       } as AssistantConfig;
 
-      await mcpService.initialize(sseAssistant);
-
-      expect(SSEClientTransport).toHaveBeenCalledWith(
-        expect.any(URL),
-        expect.objectContaining({
-          eventSourceInit: expect.objectContaining({
-            fetch: expect.any(Function),
-          }),
-          requestInit: expect.objectContaining({
-            agent: expect.any(Object),
-          }),
-        }),
+      await expect(
+        mcpService.doInitialize(sseAssistant, false, true),
+      ).rejects.toThrow(
+        "MCP TLS certificate verification cannot be disabled",
       );
-      expect(HttpsAgent).toHaveBeenCalledWith({
-        rejectUnauthorized: false,
-      });
+      expect(SSEClientTransport).not.toHaveBeenCalled();
     });
 
     it("should not create HttpsAgent when verifySsl is true for SSE transport", async () => {
@@ -302,11 +413,10 @@ describe("MCPService", () => {
       expect(HttpsAgent).not.toHaveBeenCalled();
     });
 
-    it("should create HttpsAgent when verifySsl is false for streamable-http transport", async () => {
+    it("rejects insecure TLS settings for httpAssistant", async () => {
       const { StreamableHTTPClientTransport } = await import(
         "@modelcontextprotocol/sdk/client/streamableHttp.js"
       );
-      const { Agent: HttpsAgent } = await import("https");
 
       const httpAssistant: AssistantConfig = {
         name: "http-assistant",
@@ -323,19 +433,12 @@ describe("MCPService", () => {
         ],
       } as AssistantConfig;
 
-      await mcpService.initialize(httpAssistant);
-
-      expect(StreamableHTTPClientTransport).toHaveBeenCalledWith(
-        expect.any(URL),
-        expect.objectContaining({
-          requestInit: expect.objectContaining({
-            agent: expect.any(Object),
-          }),
-        }),
+      await expect(
+        mcpService.doInitialize(httpAssistant, false, true),
+      ).rejects.toThrow(
+        "MCP TLS certificate verification cannot be disabled",
       );
-      expect(HttpsAgent).toHaveBeenCalledWith({
-        rejectUnauthorized: false,
-      });
+      expect(StreamableHTTPClientTransport).not.toHaveBeenCalled();
     });
 
     it("should not create HttpsAgent when verifySsl is true for streamable-http transport", async () => {

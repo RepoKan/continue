@@ -3,6 +3,7 @@ import { stripImages } from "core/util/messageContent.js";
 import { createHistoryItem } from "core/util/messageConversion.js";
 
 import { checkToolPermission } from "src/permissions/permissionChecker.js";
+import { getSubagentContext } from "../subagent/sessionContext.js";
 
 import {
   SERVICE_NAMES,
@@ -40,7 +41,9 @@ export async function handleToolCalls(
     options;
   const chatHistorySvc = services.chatHistory;
   const useService =
-    typeof chatHistorySvc?.isReady === "function" && chatHistorySvc.isReady();
+    !getSubagentContext() &&
+    typeof chatHistorySvc?.isReady === "function" &&
+    chatHistorySvc.isReady();
   if (toolCalls.length === 0) {
     if (content) {
       if (useService) {
@@ -149,11 +152,33 @@ export async function handleToolCalls(
   // Execute the valid preprocessed tool calls
   // Note: executeStreamedToolCalls adds tool results to toolCallStates via
   // services.chatHistory.addToolResult() internally
-  const { hasRejection } = await executeStreamedToolCalls(
+  const { hasRejection, chatHistoryEntries } = await executeStreamedToolCalls(
     preprocessedCalls,
     callbacks,
     isHeadless,
   );
+
+  // A child stores results on its own ChatHistoryItem, never the parent service.
+  if (!useService) {
+    const latestAssistant = chatHistory.findLast(
+      (item) => item.message.role === "assistant" && item.toolCallStates,
+    );
+    for (const entry of chatHistoryEntries) {
+      const toolState = latestAssistant?.toolCallStates?.find(
+        (state) => state.toolCallId === entry.tool_call_id,
+      );
+      if (toolState) {
+        toolState.status = entry.status;
+        toolState.output = [
+          {
+            content: stripImages(entry.content) || "",
+            name: "Tool Result",
+            description: "Tool execution result",
+          },
+        ];
+      }
+    }
+  }
 
   if (isHeadless && hasRejection) {
     logger.debug(
@@ -172,21 +197,24 @@ export async function handleToolCalls(
 export async function getRequestTools(isHeadless: boolean) {
   const availableTools = await getAllAvailableTools(isHeadless);
 
-  const permissionsState =
-    await serviceContainer.get<ToolPermissionServiceState>(
-      SERVICE_NAMES.TOOL_PERMISSIONS,
-    );
+  const permissions =
+    getSubagentContext()?.permissions ??
+    (
+      await serviceContainer.get<ToolPermissionServiceState>(
+        SERVICE_NAMES.TOOL_PERMISSIONS,
+      )
+    ).permissions;
 
   const allowedTools: Tool[] = [];
   for (const tool of availableTools) {
     const result = checkToolPermission(
       { name: tool.name, arguments: {} },
-      permissionsState.permissions,
+      permissions,
     );
 
     if (
       result.permission === "allow" ||
-      (result.permission === "ask" && !isHeadless)
+      (result.permission === "ask" && !isHeadless && !getSubagentContext())
     ) {
       allowedTools.push(tool);
     }

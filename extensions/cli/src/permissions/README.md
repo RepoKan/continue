@@ -10,11 +10,11 @@ The tool permissions system allows you to control which tools the AI can use and
 
 The system comes with sensible default policies:
 
-- Read-only tools (`readFile`, `listFiles`, `searchCode`, `fetch`) are **allowed** by default
-- Write operations (`writeFile`) require **confirmation** (ask)
-- Terminal commands (`runTerminalCommand`) require **confirmation** (ask)
-- MCP tools and Bash require **confirmation** (ask) in TUI mode, but are **allowed** automatically in headless mode
-- Any unmatched tools default to **ask**
+- Local read-only tools such as `Read`, `List`, `Search`, `Diff`, and `Status` are **allowed** by the default policy.
+- `Write`, `Edit`, `MultiEdit`, `Bash`, `Fetch`, and `UploadArtifact` require **confirmation** (`ask`) in both normal and headless defaults. `Fetch` is an outbound operation and is not treated as local read-only access.
+- Unknown tools, including unclassified MCP tools, default to **ask**. In headless execution without an approval UI, an `ask` decision must fail closed; verify that execution path before relying on it in a sensitive environment.
+- **Plan mode** excludes write tools, `Bash`, `Fetch`, `UploadArtifact`, and unknown MCP tools. **Auto mode** intentionally overrides policies with `* = allow` and must not be used for KKS-private data without an additional verified private-workspace safeguard.
+- Explicit `--agent` tool declarations can produce `allow` entries, including for tools that default to `ask`; inspect the effective agent policy rather than assuming default headless rules still apply.
 
 ## How It Works
 
@@ -24,11 +24,7 @@ Tools with "exclude" permission are filtered out before being sent to the AI mod
 
 ### 2. Permission Checking (Ask Policy)
 
-When the AI tries to use a tool with "ask" permission, the system will:
-
-1. Display a permission request in the UI
-2. Wait for user approval (y/n)
-3. Execute the tool if approved, or return an error if denied
+When the AI tries to use a tool with "ask" permission in an interactive UI, the system requests approval before execution. In an environment without an approval UI, the executor must reject the call rather than silently converting it to `allow`; this integration behavior requires a runtime test.
 
 ### 3. Automatic Execution (Allow Policy)
 
@@ -73,10 +69,10 @@ The system is designed to be extensible for future features like:
 
 ```typescript
 // Check permission for a tool call
-const result = checkToolPermission({
-  name: "writeFile",
-  arguments: { path: "/important.txt", content: "data" },
-});
+const result = checkToolPermission(
+  { name: "Write", arguments: { path: "/synthetic/example.txt", content: "demo" } },
+  { policies: getDefaultToolPolicies() },
+);
 
 if (result.permission === "ask") {
   // Request user permission
