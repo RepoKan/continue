@@ -1,0 +1,138 @@
+name: CN Check Skill Package Validation
+
+# skills/cn-check.zip is distributed as a package, but nothing has verified it
+# since it was added. That let the packaged SKILL.md drift from
+# skills/cn-check/SKILL.md for weeks after the source was edited. This workflow
+# makes the packaged copy a checked artifact.
+
+on:
+  pull_request:
+    paths:
+      - "skills/cn-check/**"
+      - "skills/cn-check.zip"
+      - ".github/workflows/cn-check-package-validation.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "skills/cn-check/**"
+      - "skills/cn-check.zip"
+      - ".github/workflows/cn-check-package-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+concurrency:
+  group: cn-check-package-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-package:
+    name: Validate cn-check package against source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact target commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.TARGET_SHA }}
+
+      - name: Verify exact target checkout
+        shell: bash
+        run: |
+          ACTUAL_SHA=$(git rev-parse HEAD)
+          echo "Target SHA: $TARGET_SHA"
+          echo "Actual SHA: $ACTUAL_SHA"
+          test "$ACTUAL_SHA" = "$TARGET_SHA"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate package matches skill source
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import re
+          import sys
+          import zipfile
+
+          root = Path('.').resolve()
+          source = root / 'skills/cn-check/SKILL.md'
+          archive_path = root / 'skills/cn-check.zip'
+          member_name = 'cn-check/SKILL.md'
+
+          def die(message):
+              print(f'INVALID: {message}', file=sys.stderr)
+              raise SystemExit(1)
+
+          if not source.is_file():
+              die('missing skills/cn-check/SKILL.md')
+          if not archive_path.is_file():
+              die('missing skills/cn-check.zip')
+
+          source_bytes = source.read_bytes()
+
+          if not zipfile.is_zipfile(archive_path):
+              die('skills/cn-check.zip is not a valid ZIP archive')
+
+          with zipfile.ZipFile(archive_path) as archive:
+              bad_member = archive.testzip()
+              if bad_member:
+                  die(f'corrupt package member: {bad_member}')
+
+              names = archive.namelist()
+              files = [name for name in names if not name.endswith('/')]
+              if files != [member_name]:
+                  die(
+                      'unexpected package contents: '
+                      f'{files}; expected exactly [{member_name!r}]'
+                  )
+              if member_name not in names:
+                  die(f'missing package member {member_name}')
+
+              packaged_bytes = archive.read(member_name)
+
+          if packaged_bytes != source_bytes:
+              print('Packaged size:  ', len(packaged_bytes), 'bytes')
+              print('Source size:    ', len(source_bytes), 'bytes')
+              print(
+                  'Packaged SHA256:',
+                  hashlib.sha256(packaged_bytes).hexdigest(),
+              )
+              print(
+                  'Source SHA256:  ',
+                  hashlib.sha256(source_bytes).hexdigest(),
+              )
+              die(
+                  'skills/cn-check.zip is stale: its cn-check/SKILL.md is not '
+                  'byte-identical to skills/cn-check/SKILL.md. Rebuild the '
+                  'package from the current source instead of editing the '
+                  'archive by hand.'
+              )
+
+          match = re.match(r'\A---\n(.*?)\n---(?:\n|\Z)', source_bytes.decode('utf-8'), re.S)
+          if not match:
+              die('skills/cn-check/SKILL.md missing frontmatter')
+          frontmatter = {}
+          for line in match.group(1).splitlines():
+              if not line.strip():
+                  continue
+              if ':' not in line:
+                  die('invalid SKILL.md frontmatter')
+              key, value = line.split(':', 1)
+              frontmatter[key.strip()] = value.strip().strip('"\'')
+          if frontmatter.get('name') != 'cn-check' or not frontmatter.get('description'):
+              die('SKILL.md must declare name cn-check and a non-empty description')
+
+          digest = hashlib.sha256(source_bytes).hexdigest()
+          print(f'VALID: {member_name} matches skills/cn-check/SKILL.md ({len(source_bytes)} bytes)')
+          print(f'SHA256: {digest}')
+          PY
